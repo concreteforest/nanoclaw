@@ -114,6 +114,29 @@ export async function transcribeAudioMessage(
   }
 }
 
+// Direct buffer transcription (for Telegram and other sources)
+export async function transcribeAudioFromBuffer(
+  audioBuffer: Buffer,
+  groupFolder: string,
+  chatJid: string
+): Promise<string | null> {
+  try {
+    logger.info(`Transcribing audio buffer: ${audioBuffer.length} bytes`);
+
+    // Transcribe using LiteLLM
+    const result = await transcribeWithLiteLLM(audioBuffer, groupFolder, chatJid);
+
+    if (!result || !result.text) {
+      return null;
+    }
+
+    return result.text.trim();
+  } catch (err) {
+    logger.error({ err }, 'Transcription error');
+    return null;
+  }
+}
+
 // Helper to check if a message is a voice note
 export function isVoiceMessage(msg: WAMessage): boolean {
   return msg.message?.audioMessage?.ptt === true;

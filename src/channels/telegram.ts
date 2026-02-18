@@ -144,7 +144,46 @@ export class TelegramChannel implements Channel {
 
     this.bot.on("message:photo", (ctx) => storeNonText(ctx, "[Photo]"));
     this.bot.on("message:video", (ctx) => storeNonText(ctx, "[Video]"));
-    this.bot.on("message:voice", (ctx) => storeNonText(ctx, "[Voice message]"));
+    this.bot.on("message:voice", async (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const group = this.opts.registeredGroups()[chatJid];
+      if (!group) return;
+
+      try {
+        // Download voice message from Telegram
+        const file = await ctx.getFile();
+        const fileUrl = `https://api.telegram.org/file/bot${this.botToken}/${file.file_path}`;
+
+        // Fetch the voice file
+        const response = await fetch(fileUrl);
+        const audioBuffer = Buffer.from(await response.arrayBuffer());
+
+        // Transcribe using our transcription module
+        const { transcribeAudioFromBuffer } = await import('../transcription.js');
+        const transcript = await transcribeAudioFromBuffer(audioBuffer, group.folder, chatJid);
+
+        const timestamp = new Date(ctx.message.date * 1000).toISOString();
+        const senderName =
+          ctx.from?.first_name || ctx.from?.username || ctx.from?.id?.toString() || "Unknown";
+        const caption = ctx.message.caption ? ` ${ctx.message.caption}` : "";
+
+        this.opts.onChatMetadata(chatJid, timestamp);
+        this.opts.onMessage(chatJid, {
+          id: ctx.message.message_id.toString(),
+          chat_jid: chatJid,
+          sender: ctx.from?.id?.toString() || "",
+          sender_name: senderName,
+          content: transcript ? `[Voice: ${transcript}]${caption}` : `[Voice message - transcription failed]${caption}`,
+          timestamp,
+          is_from_me: false,
+        });
+
+        logger.info({ chatJid, length: transcript?.length }, 'Transcribed Telegram voice message');
+      } catch (err) {
+        logger.error({ err }, 'Telegram voice transcription error');
+        storeNonText(ctx, "[Voice message - transcription failed]");
+      }
+    });
     this.bot.on("message:audio", (ctx) => storeNonText(ctx, "[Audio]"));
     this.bot.on("message:document", (ctx) => {
       const name = ctx.message.document?.file_name || "file";
