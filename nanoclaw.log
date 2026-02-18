@@ -1,0 +1,101 @@
+
+> nanoclaw@1.0.0 start
+> node dist/index.js
+
+
+  Telegram bot: @kris_clawd_bot
+  Send /chatid to the bot to get a chat's registration ID
+
+[20:56:12.245] [32mINFO[39m (2685497): [36mUsing Docker as container runtime[39m
+[20:56:22.699] [32mINFO[39m (2685497): [36mStopped orphaned containers[39m
+    [35mcount[39m: 1
+    [35mnames[39m: [
+      "nanoclaw-main-1771448146790"
+    ]
+[20:56:22.711] [32mINFO[39m (2685497): [36mDatabase initialized[39m
+[20:56:22.712] [32mINFO[39m (2685497): [36mCost tracking initialized[39m
+[20:56:22.713] [32mINFO[39m (2685497): [36mState loaded[39m
+    [35mgroupCount[39m: 1
+[20:56:23.144] [32mINFO[39m (2685497): [36mTelegram bot connected[39m
+    [35musername[39m: "kris_clawd_bot"
+    [35mid[39m: 8572637159
+[20:56:23.146] [32mINFO[39m (2685497): [36mScheduler loop started[39m
+[20:56:23.147] [32mINFO[39m (2685497): [36mIPC watcher started (per-group namespaces)[39m
+[20:56:23.148] [32mINFO[39m (2685497): [36mNanoClaw running (trigger: @Nano)[39m
+[20:57:02.269] [32mINFO[39m (2685497): [36mTelegram message stored[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mchatName[39m: "Kris"
+    [35msender[39m: "Kris"
+[20:57:03.183] [32mINFO[39m (2685497): [36mNew messages[39m
+    [35mcount[39m: 1
+[20:57:03.195] [32mINFO[39m (2685497): [36mNo active container, enqueuing for new container[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mgroup[39m: "Personal"
+[20:57:03.211] [32mINFO[39m (2685497): [36mProcessing messages[39m
+    [35mgroup[39m: "Personal"
+    [35mmessageCount[39m: 1
+    [35mpreviousCursor[39m: "2026-02-18T20:53:21.000Z"
+    [35mpreviousPipedCursor[39m: ""
+    [35mnewCursor[39m: "2026-02-18T20:57:02.000Z"
+[20:57:03.430] [32mINFO[39m (2685497): [36mSpawning container agent[39m
+    [35mgroup[39m: "Personal"
+    [35mcontainerName[39m: "nanoclaw-main-1771448223430"
+    [35mmountCount[39m: 5
+    [35misMain[39m: true
+[20:57:17.998] [32mINFO[39m (2685497): [36mAgent output: Yes, I'm here! Perfect - so it IS a systemd service. That's good to know. 
+
+Now that the service has been restarted with the fixed code, try sending another voice message in Telegram. The fix I made c[39m
+    [35mgroup[39m: "Personal"
+[20:57:18.232] [32mINFO[39m (2685497): [36mTelegram message sent[39m
+    [35mjid[39m: "tg:8222741306"
+    [35mlength[39m: 715
+[20:58:53.469] [32mINFO[39m (2685497): [36mTelegram message stored[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mchatName[39m: "Kris"
+    [35msender[39m: "Kris"
+[20:58:53.581] [32mINFO[39m (2685497): [36mNew messages[39m
+    [35mcount[39m: 1
+[20:58:53.619] [32mINFO[39m (2685497): [36mPiped messages to active container (marked as piped, not confirmed)[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mgroup[39m: "Personal"
+    [35mcount[39m: 1
+    [35mpipedCursor[39m: "2026-02-18T20:58:53.000Z"
+[20:59:00.066] [32mINFO[39m (2685497): [36mTelegram message stored[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mchatName[39m: "Kris"
+    [35msender[39m: "Kris"
+[20:59:01.627] [32mINFO[39m (2685497): [36mNew messages[39m
+    [35mcount[39m: 1
+[20:59:01.632] [32mINFO[39m (2685497): [36mPiped messages to active container (marked as piped, not confirmed)[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mgroup[39m: "Personal"
+    [35mcount[39m: 1
+    [35mpipedCursor[39m: "2026-02-18T20:58:59.000Z"
+[20:59:06.417] [32mINFO[39m (2685497): [36mAgent output: No, I can't see the logs directly from inside this container. I'm running in an isolated Docker container that only has access to the mounted project files, not the running service's logs.
+
+To check i[39m
+    [35mgroup[39m: "Personal"
+[20:59:06.721] [32mINFO[39m (2685497): [36mTelegram message sent[39m
+    [35mjid[39m: "tg:8222741306"
+    [35mlength[39m: 766
+[20:59:16.713] [32mINFO[39m (2685497): [36mAgent output: No, I still can't see the nanoclaw.log file directly from inside this container. The container I'm running in only has access to:
+- `/workspace/project` (your nanoclaw source code)
+- `/workspace/group[39m
+    [35mgroup[39m: "Personal"
+[20:59:17.073] [32mINFO[39m (2685497): [36mTelegram message sent[39m
+    [35mjid[39m: "tg:8222741306"
+    [35mlength[39m: 577
+[20:59:39.841] [32mINFO[39m (2685497): [36mTranscribing audio buffer: 71479 bytes[39m
+[20:59:40.749] [32mINFO[39m (2685497): [36mTranscription cost logged[39m
+    [35mduration[39m: 3.5299999713897705
+    [35mcost[39m: 0.0003529999971389771
+[20:59:40.780] [32mINFO[39m (2685497): [36mTranscribed Telegram voice message[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mlength[39m: 56
+[20:59:41.848] [32mINFO[39m (2685497): [36mNew messages[39m
+    [35mcount[39m: 1
+[20:59:41.866] [32mINFO[39m (2685497): [36mPiped messages to active container (marked as piped, not confirmed)[39m
+    [35mchatJid[39m: "tg:8222741306"
+    [35mgroup[39m: "Personal"
+    [35mcount[39m: 1
+    [35mpipedCursor[39m: "2026-02-18T20:59:37.000Z"

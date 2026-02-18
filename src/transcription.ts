@@ -33,22 +33,39 @@ async function transcribeWithLiteLLM(
     // Call LiteLLM Whisper API
     const apiUrl = `${LITELLM_BASE_URL}/v1/audio/transcriptions`;
 
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LITELLM_API_KEY}`,
-        ...form.getHeaders(),
-      },
-      body: form,
+    // Use form-data's built-in submit method instead of fetch
+    const response = await new Promise<any>((resolve, reject) => {
+      form.submit(
+        {
+          protocol: apiUrl.startsWith('https') ? 'https:' : 'http:',
+          host: new URL(apiUrl).host,
+          path: new URL(apiUrl).pathname,
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LITELLM_API_KEY}`,
+          },
+        },
+        (err, res) => {
+          if (err) return reject(err);
+          resolve(res);
+        }
+      );
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error({ status: response.status, error: errorText }, 'LiteLLM transcription failed');
+    if (response.statusCode !== 200) {
+      let errorText = '';
+      for await (const chunk of response) {
+        errorText += chunk.toString();
+      }
+      logger.error({ status: response.statusCode, error: errorText }, 'LiteLLM transcription failed');
       return null;
     }
 
-    const result = await response.json() as { text: string; duration?: number };
+    let body = '';
+    for await (const chunk of response) {
+      body += chunk.toString();
+    }
+    const result = JSON.parse(body) as { text: string; duration?: number };
 
     // Log cost tracking (duration in seconds)
     if (result.duration) {
