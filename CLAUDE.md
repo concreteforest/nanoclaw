@@ -2,9 +2,21 @@
 
 Personal Claude assistant. See [README.md](README.md) for philosophy and setup. See [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) for architecture decisions.
 
+## IMPORTANT: Check Skills First!
+
+**Before making ANY changes to NanoClaw, ALWAYS check `.claude/skills/` first!**
+
+There are pre-built skills with detailed instructions for common modifications:
+- Adding integrations (Gmail, Telegram, Twitter/X, voice transcription)
+- Container runtime changes (Docker conversion)
+- Debugging issues
+- Customizing behavior
+
+Use the Task tool with `subagent_type=Explore` to search the skills directory, or read the relevant SKILL.md file directly before implementing changes.
+
 ## Quick Context
 
-Single Node.js process that connects to WhatsApp, routes messages to Claude Agent SDK running in Apple Container (Linux VMs). Each group has isolated filesystem and memory.
+Single Node.js process that connects to WhatsApp, routes messages to Claude Agent SDK running in Docker containers. Each group has isolated filesystem and memory.
 
 ## Key Files
 
@@ -21,13 +33,21 @@ Single Node.js process that connects to WhatsApp, routes messages to Claude Agen
 | `groups/{name}/CLAUDE.md` | Per-group memory (isolated) |
 | `container/skills/agent-browser.md` | Browser automation tool (available to all agents via Bash) |
 
-## Skills
+## Available Skills
 
-| Skill | When to Use |
-|-------|-------------|
-| `/setup` | First-time installation, authentication, service configuration |
-| `/customize` | Adding channels, integrations, changing behavior |
-| `/debug` | Container issues, logs, troubleshooting |
+All skills are in `.claude/skills/`. **Always check these before making changes!**
+
+| Skill | Purpose |
+|-------|---------|
+| `setup` | First-time installation, authentication, service configuration |
+| `debug` | Container issues, logs, troubleshooting |
+| `customize` | Adding channels, integrations, changing behavior |
+| `convert-to-docker` | Convert from Apple Container to Docker (already applied) |
+| `add-telegram` | Add Telegram channel (replace or alongside WhatsApp) |
+| `add-telegram-swarm` | Add Agent Swarm/Teams support to Telegram |
+| `add-gmail` | Add Gmail integration (as tool or channel) |
+| `add-voice-transcription` | Add WhatsApp voice message transcription (Whisper API) |
+| `x-integration` | Add Twitter/X integration (post, like, reply, retweet) |
 
 ## Development
 

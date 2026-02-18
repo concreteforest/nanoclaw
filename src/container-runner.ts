@@ -1,8 +1,8 @@
 /**
  * Container Runner for NanoClaw
- * Spawns agent execution in Apple Container and handles IPC
+ * Spawns agent execution in Docker or Apple Container and handles IPC
  */
-import { ChildProcess, exec, spawn } from 'child_process';
+import { ChildProcess, exec, execSync, spawn } from 'child_process';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -32,6 +32,18 @@ function getHomeDir(): string {
     );
   }
   return home;
+}
+
+/**
+ * Detect available container runtime (Docker or Apple Container)
+ */
+function getContainerRuntime(): 'docker' | 'container' {
+  try {
+    execSync('docker info', { stdio: 'pipe' });
+    return 'docker';
+  } catch {
+    return 'container';
+  }
 }
 
 export interface ContainerInput {
@@ -186,7 +198,7 @@ function buildVolumeMounts(
  * Secrets are never written to disk or mounted as files.
  */
 function readSecrets(): Record<string, string> {
-  return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY']);
+  return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL']);
 }
 
 function buildContainerArgs(mounts: VolumeMount[], containerName: string): string[] {
@@ -202,13 +214,10 @@ function buildContainerArgs(mounts: VolumeMount[], containerName: string): strin
     args.push('-e', 'HOME=/home/node');
   }
 
-  // Apple Container: --mount for readonly, -v for read-write
+  // Docker/Apple Container: -v with :ro suffix for readonly
   for (const mount of mounts) {
     if (mount.readonly) {
-      args.push(
-        '--mount',
-        `type=bind,source=${mount.hostPath},target=${mount.containerPath},readonly`,
-      );
+      args.push('-v', `${mount.hostPath}:${mount.containerPath}:ro`);
     } else {
       args.push('-v', `${mount.hostPath}:${mount.containerPath}`);
     }
@@ -262,7 +271,8 @@ export async function runContainerAgent(
   fs.mkdirSync(logsDir, { recursive: true });
 
   return new Promise((resolve) => {
-    const container = spawn('container', containerArgs, {
+    const runtime = getContainerRuntime();
+    const container = spawn(runtime, containerArgs, {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 

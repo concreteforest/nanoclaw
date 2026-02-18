@@ -274,6 +274,117 @@ Use available_groups.json to find the JID for a group. The folder name should be
   },
 );
 
+server.tool(
+  'get_cost_summary',
+  `Get a summary of API costs and token usage over a time period.
+
+Returns total costs, token counts, and breakdowns by group and model. Useful for tracking spending and understanding usage patterns.`,
+  {
+    start_date: z.string().optional().describe('Start date in ISO format (e.g., "2026-02-01T00:00:00Z")'),
+    end_date: z.string().optional().describe('End date in ISO format (e.g., "2026-02-18T23:59:59Z")'),
+    group_folder: z.string().optional().describe('Filter by specific group folder (e.g., "main", "family-chat")'),
+  },
+  async (args) => {
+    const data = {
+      type: 'get_cost_summary',
+      start_date: args.start_date,
+      end_date: args.end_date,
+      group_folder: args.group_folder,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    // Wait for response file
+    const responseDir = path.join(IPC_DIR, 'responses');
+    fs.mkdirSync(responseDir, { recursive: true });
+
+    // Poll for response (with 5 second timeout)
+    for (let i = 0; i < 50; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const files = fs.readdirSync(responseDir);
+      const responseFile = files.find(f => f.startsWith('cost_summary_'));
+      if (responseFile) {
+        const content = fs.readFileSync(path.join(responseDir, responseFile), 'utf-8');
+        fs.unlinkSync(path.join(responseDir, responseFile));
+        return { content: [{ type: 'text' as const, text: content }] };
+      }
+    }
+
+    return { content: [{ type: 'text' as const, text: 'Timeout waiting for cost summary.' }] };
+  },
+);
+
+server.tool(
+  'log_token_usage',
+  `Log token usage for cost tracking. This records API usage with automatic cost calculation based on LiteLLM pricing.
+
+Typically this would be called automatically, but can be used to manually record usage if needed.`,
+  {
+    model: z.string().describe('Model name (e.g., "claude-3-5-sonnet-latest")'),
+    input_tokens: z.number().describe('Number of input tokens used'),
+    output_tokens: z.number().describe('Number of output tokens generated'),
+    cache_write_tokens: z.number().optional().describe('Number of tokens written to cache'),
+    cache_read_tokens: z.number().optional().describe('Number of tokens read from cache'),
+  },
+  async (args) => {
+    const data = {
+      type: 'log_token_usage',
+      group_folder: groupFolder,
+      chat_jid: chatJid,
+      model: args.model,
+      input_tokens: args.input_tokens,
+      output_tokens: args.output_tokens,
+      cache_write_tokens: args.cache_write_tokens || 0,
+      cache_read_tokens: args.cache_read_tokens || 0,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    return {
+      content: [{ type: 'text' as const, text: 'Token usage logged successfully.' }],
+    };
+  },
+);
+
+server.tool(
+  'get_daily_costs',
+  `Get daily cost breakdown for the last N days.
+
+Shows costs per day to help identify usage trends and spikes. Default is last 30 days.`,
+  {
+    days: z.number().optional().default(30).describe('Number of days to include (default: 30)'),
+  },
+  async (args) => {
+    const data = {
+      type: 'get_daily_costs',
+      days: args.days || 30,
+      timestamp: new Date().toISOString(),
+    };
+
+    writeIpcFile(TASKS_DIR, data);
+
+    // Wait for response file
+    const responseDir = path.join(IPC_DIR, 'responses');
+    fs.mkdirSync(responseDir, { recursive: true});
+
+    // Poll for response (with 5 second timeout)
+    for (let i = 0; i < 50; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const files = fs.readdirSync(responseDir);
+      const responseFile = files.find(f => f.startsWith('daily_costs_'));
+      if (responseFile) {
+        const content = fs.readFileSync(path.join(responseDir, responseFile), 'utf-8');
+        fs.unlinkSync(path.join(responseDir, responseFile));
+        return { content: [{ type: 'text' as const, text: content }] };
+      }
+    }
+
+    return { content: [{ type: 'text' as const, text: 'Timeout waiting for daily costs.' }] };
+  },
+);
+
 // Start the stdio transport
 const transport = new StdioServerTransport();
 await server.connect(transport);

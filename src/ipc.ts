@@ -13,6 +13,7 @@ import { AvailableGroup } from './container-runner.js';
 import { createTask, deleteTask, getTaskById, updateTask } from './db.js';
 import { logger } from './logger.js';
 import { RegisteredGroup } from './types.js';
+import { getCostSummary, getDailyCosts, formatCostReport, logTokenUsage } from './cost-tracker.js';
 
 export interface IpcDeps {
   sendMessage: (jid: string, text: string) => Promise<void>;
@@ -169,6 +170,16 @@ export async function processTaskIpc(
     trigger?: string;
     requiresTrigger?: boolean;
     containerConfig?: RegisteredGroup['containerConfig'];
+    // For cost tracking
+    start_date?: string;
+    end_date?: string;
+    group_folder?: string;
+    days?: number;
+    model?: string;
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_write_tokens?: number;
+    cache_read_tokens?: number;
   },
   sourceGroup: string, // Verified identity from IPC directory
   isMain: boolean, // Verified from directory path
@@ -370,6 +381,99 @@ export async function processTaskIpc(
           { data },
           'Invalid register_group request - missing required fields',
         );
+      }
+      break;
+
+    case 'get_cost_summary':
+      try {
+        const summary = getCostSummary(
+          data.start_date as string | undefined,
+          data.end_date as string | undefined,
+          data.group_folder as string | undefined,
+        );
+        const report = formatCostReport(summary);
+
+        // Write response to IPC responses directory
+        const responsesDir = path.join(DATA_DIR, 'ipc', sourceGroup, 'responses');
+        fs.mkdirSync(responsesDir, { recursive: true});
+        const responseFile = path.join(
+          responsesDir,
+          `cost_summary_${Date.now()}.txt`,
+        );
+        fs.writeFileSync(responseFile, report);
+        logger.info({ sourceGroup }, 'Cost summary generated via IPC');
+      } catch (err) {
+        logger.error({ err, sourceGroup }, 'Error generating cost summary');
+      }
+      break;
+
+    case 'get_daily_costs':
+      try {
+        const dailyCosts = getDailyCosts(data.days as number | undefined);
+
+        let report = `*Daily Costs (Last ${data.days || 30} Days)*\n\n`;
+
+        if (dailyCosts.length === 0) {
+          report += 'No usage data found for this period.';
+        } else {
+          for (const day of dailyCosts) {
+            report += `${day.date}: $${day.cost.toFixed(4)} (${day.requests} requests)\n`;
+          }
+
+          const totalCost = dailyCosts.reduce((sum, day) => sum + day.cost, 0);
+          const totalRequests = dailyCosts.reduce(
+            (sum, day) => sum + day.requests,
+            0,
+          );
+          const avgCostPerDay = totalCost / dailyCosts.length;
+
+          report += `\n*Summary:*\n`;
+          report += `• Total: $${totalCost.toFixed(4)}\n`;
+          report += `• Avg/day: $${avgCostPerDay.toFixed(4)}\n`;
+          report += `• Total requests: ${totalRequests}\n`;
+        }
+
+        // Write response to IPC responses directory
+        const responsesDir = path.join(DATA_DIR, 'ipc', sourceGroup, 'responses');
+        fs.mkdirSync(responsesDir, { recursive: true });
+        const responseFile = path.join(
+          responsesDir,
+          `daily_costs_${Date.now()}.txt`,
+        );
+        fs.writeFileSync(responseFile, report);
+        logger.info({ sourceGroup }, 'Daily costs generated via IPC');
+      } catch (err) {
+        logger.error({ err, sourceGroup }, 'Error generating daily costs');
+      }
+      break;
+
+    case 'log_token_usage':
+      if (
+        data.model &&
+        data.input_tokens !== undefined &&
+        data.output_tokens !== undefined &&
+        data.group_folder &&
+        data.chatJid
+      ) {
+        try {
+          logTokenUsage({
+            group_folder: data.group_folder,
+            chat_jid: data.chatJid,
+            model: data.model,
+            input_tokens: data.input_tokens,
+            output_tokens: data.output_tokens,
+            cache_write_tokens: data.cache_write_tokens,
+            cache_read_tokens: data.cache_read_tokens,
+          });
+          logger.info(
+            { sourceGroup, model: data.model, tokens: data.input_tokens + data.output_tokens },
+            'Token usage logged via IPC',
+          );
+        } catch (err) {
+          logger.error({ err, sourceGroup }, 'Error logging token usage');
+        }
+      } else {
+        logger.warn({ data }, 'Invalid log_token_usage request - missing required fields');
       }
       break;
 
