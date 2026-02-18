@@ -58,21 +58,21 @@ const MODEL_PRICING: Record<string, ModelPricing> = {
     cache_write_cost_per_million: 3.75,
     cache_read_cost_per_million: 0.30,
   },
-  // Audio models - Whisper pricing is per minute, not per token
-  // $0.006 per minute = $0.0001 per second
+  // Audio models - Whisper pricing is per second, not per token
+  // From LiteLLM pricing: $0.0001 per second for both input and output
   // For cost tracking purposes, we'll treat audio duration as "tokens"
   // where 1 token = 1 second of audio
   'whisper-1': {
     model: 'whisper-1',
     input_cost_per_million: 100.0, // $0.0001 per second * 1,000,000 = $100 per million seconds
-    output_cost_per_million: 0.0, // Whisper is transcription only, no output cost
+    output_cost_per_million: 100.0, // $0.0001 per second * 1,000,000 = $100 per million seconds
     cache_write_cost_per_million: 0.0,
     cache_read_cost_per_million: 0.0,
   },
   'whisper': {
     model: 'whisper',
     input_cost_per_million: 100.0, // Alias for whisper-1
-    output_cost_per_million: 0.0,
+    output_cost_per_million: 100.0, // $0.0001 per second * 1,000,000 = $100 per million seconds
     cache_write_cost_per_million: 0.0,
     cache_read_cost_per_million: 0.0,
   },
