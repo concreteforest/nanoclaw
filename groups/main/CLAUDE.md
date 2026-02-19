@@ -59,6 +59,12 @@ Keep messages clean and readable for WhatsApp.
 
 This is the **main channel**, which has elevated privileges.
 
+## User Information
+
+- **Name**: Kris (kmckinnon@gmail.com)
+- **Timezone**: AST (Atlantic Standard Time, UTC-4)
+- **Work hours**: Usually stops work around 7-8pm AST
+
 ## Container Mounts
 
 Main has access to the entire project:

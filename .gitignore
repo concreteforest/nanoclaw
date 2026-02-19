@@ -33,3 +33,4 @@ groups/global/*
 .claude/settings.local.json
 
 agents-sdk-docs
+nanoclaw.log
