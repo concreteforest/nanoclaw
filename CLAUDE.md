@@ -61,6 +61,17 @@ npm run build        # Compile TypeScript
 
 Service management:
 ```bash
+# LINUX (User systemd service) - USE THIS!
+systemctl --user start nanoclaw    # Start NanoClaw
+systemctl --user stop nanoclaw     # Stop NanoClaw
+systemctl --user restart nanoclaw  # Restart NanoClaw
+systemctl --user status nanoclaw   # Check status
+journalctl --user -u nanoclaw -f   # View logs (follow mode)
+
+# Service file: ~/.config/systemd/user/nanoclaw.service
+# Log file: ~/nanoclaw/nanoclaw.log
+
+# macOS (if using launchd)
 launchctl load ~/Library/LaunchAgents/com.nanoclaw.plist
 launchctl unload ~/Library/LaunchAgents/com.nanoclaw.plist
 ```

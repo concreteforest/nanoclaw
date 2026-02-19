@@ -1,3 +1,11 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "google_workspace": {
+      "command": "uvx",
+      "args": ["workspace-mcp"],
+      "env": {
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      }
+    }
+  }
 }

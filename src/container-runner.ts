@@ -180,6 +180,16 @@ function buildVolumeMounts(
     readonly: true,
   });
 
+  // Google Workspace MCP credentials directory
+  const googleWorkspaceDir = path.join(homeDir, '.google_workspace_mcp');
+  if (fs.existsSync(googleWorkspaceDir)) {
+    mounts.push({
+      hostPath: googleWorkspaceDir,
+      containerPath: '/home/node/.google_workspace_mcp',
+      readonly: false,  // MCP may need to refresh tokens
+    });
+  }
+
   // Additional mounts validated against external allowlist (tamper-proof from containers)
   if (group.containerConfig?.additionalMounts) {
     const validatedMounts = validateAdditionalMounts(
