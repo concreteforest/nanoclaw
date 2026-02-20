@@ -309,6 +309,23 @@ export function getDailyCosts(days: number = 30): Array<{
   }>;
 }
 
+export function getDailyCostUSD(): number {
+  if (!db) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+  const startTimestamp = today.toISOString();
+
+  const query = `
+    SELECT SUM(total_cost) as total
+    FROM token_usage
+    WHERE timestamp >= ?
+  `;
+
+  const row = db.prepare(query).get(startTimestamp) as { total: number | null };
+  return row?.total || 0;
+}
+
 export function formatCostReport(summary: CostSummary): string {
   let report = `*Cost Summary*\n\n`;
   report += `Total Cost: $${summary.total_cost.toFixed(4)}\n`;

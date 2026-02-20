@@ -21,6 +21,7 @@ import {
   writeTasksSnapshot,
 } from './container-runner.js';
 import {
+  createTask,
   getAllChats,
   getAllRegisteredGroups,
   getAllSessions,
@@ -29,6 +30,7 @@ import {
   getMessagesSince,
   getNewMessages,
   getRouterState,
+  getTaskById,
   initDatabase,
   setRegisteredGroup,
   setRouterState,
@@ -145,6 +147,21 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
 
   const prompt = formatMessages(missedMessages);
 
+  // Intercept the /clear command
+  let actualPrompt = prompt;
+  let isClearCommand = false;
+  const hasClear = missedMessages.some(m => m.content.trim().toLowerCase().includes('/clear'));
+  if (hasClear) {
+    isClearCommand = true;
+    actualPrompt = `The user has requested to clear the conversation context using the /clear command.
+Your task is to:
+1. Write a very concise, bulleted summary of the most important facts, decisions, and context from this conversation so far.
+2. Save this summary into this group's CLAUDE.md file using bash tools. Ensure you append it under a "Historical Context" header.
+3. Once you have saved it, reply to the user with a short message confirming that the context has been compacted and saved to memory.`;
+
+    logger.info({ group: group.name }, 'Intercepted /clear command, triggering compaction');
+  }
+
   // Advance cursor so the piping path in startMessageLoop won't re-fetch
   // these messages. Save the old cursor so we can roll back on error.
   const previousCursor = lastAgentTimestamp[chatJid] || '';
@@ -186,7 +203,7 @@ async function processGroupMessages(chatJid: string): Promise<boolean> {
   let hadError = false;
   let outputSentToUser = false;
 
-  const output = await runAgent(group, prompt, chatJid, async (result) => {
+  const output = await runAgent(group, actualPrompt, chatJid, async (result) => {
     // Streaming output callback — called for each agent result
     if (result.result) {
       const raw = typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
@@ -495,6 +512,27 @@ function recoverPendingMessages(): void {
   }
 }
 
+function ensureLogRotationTask(): void {
+  const taskId = 'global-log-rotation';
+  const existingTask = getTaskById(taskId);
+
+  if (!existingTask) {
+    logger.info('Registering global log rotation task');
+    createTask({
+      id: taskId,
+      group_folder: MAIN_GROUP_FOLDER,
+      chat_jid: 'local:system', // Internal JID so it doesn't message a real chat unless it errors
+      prompt: `Please run a bash script to find and delete all files in the groups/*/logs/ directories that are older than 7 days. DO NOT touch CLAUDE.md or store/messages.db. Only delete files ending in .log. Return a brief summary of how many files were deleted.`,
+      schedule_type: 'cron',
+      schedule_value: '0 3 * * *', // Run at 3:00 AM every day
+      status: 'active',
+      next_run: new Date(Date.now() + 60000).toISOString(), // Run soon after startup the first time
+      created_at: new Date().toISOString(),
+      context_mode: 'isolated'
+    });
+  }
+}
+
 function ensureContainerSystemRunning(): void {
   // Detect runtime: check for Docker first (Linux default), then Apple Container (macOS)
   const isDockerAvailable = (() => {
@@ -614,6 +652,7 @@ async function main(): Promise<void> {
   logger.info('Database initialized');
   initCostTracking();
   logger.info('Cost tracking initialized');
+  ensureLogRotationTask();
   loadState();
 
   // Graceful shutdown handlers

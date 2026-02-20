@@ -14,7 +14,9 @@ import {
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
+  DAILY_BUDGET_USD,
 } from './config.js';
+import { getDailyCostUSD } from './cost-tracker.js';
 import { readEnvFile } from './env.js';
 import { logger } from './logger.js';
 import { validateAdditionalMounts } from './mount-security.js';
@@ -245,6 +247,29 @@ export async function runContainerAgent(
   onProcess: (proc: ChildProcess, containerName: string) => void,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<ContainerOutput> {
+  // ENFORCEMENT CHECK
+  const currentCost = getDailyCostUSD();
+  if (currentCost >= DAILY_BUDGET_USD) {
+    logger.error(
+      { group: group.name, currentCost, budget: DAILY_BUDGET_USD },
+      'Agent blocked: Daily budget exceeded'
+    );
+
+    // Attempt to notify the user if streaming output is hooked up
+    if (onOutput) {
+      await onOutput({
+        status: 'error',
+        result: `System Alert: The daily budget of $${DAILY_BUDGET_USD} has been reached (Current cost: $${currentCost.toFixed(2)}). Agent execution is paused until tomorrow.`,
+      });
+    }
+
+    return {
+      status: 'error',
+      result: null,
+      error: `Blocked by budget limit (${currentCost} >= ${DAILY_BUDGET_USD})`
+    };
+  }
+
   const startTime = Date.now();
 
   const groupDir = path.join(GROUPS_DIR, group.folder);
