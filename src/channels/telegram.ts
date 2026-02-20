@@ -252,6 +252,65 @@ export class TelegramChannel implements Channel {
     });
   }
 
+  /**
+   * Split text into chunks that respect Markdown boundaries
+   * Tries to split at newlines near the max length to avoid breaking formatting
+   */
+  private splitMessageSafely(text: string, maxLength: number): string[] {
+    if (text.length <= maxLength) {
+      return [text];
+    }
+
+    const chunks: string[] = [];
+    let remaining = text;
+
+    while (remaining.length > 0) {
+      if (remaining.length <= maxLength) {
+        chunks.push(remaining);
+        break;
+      }
+
+      // Try to find a good break point (newline) before maxLength
+      let splitAt = maxLength;
+      const searchStart = Math.max(0, maxLength - 200); // Look back up to 200 chars
+      const lastNewline = remaining.lastIndexOf('\n', maxLength);
+
+      if (lastNewline > searchStart) {
+        // Found a good newline break point
+        splitAt = lastNewline + 1;
+      } else {
+        // No good newline, try to break at a space
+        const lastSpace = remaining.lastIndexOf(' ', maxLength);
+        if (lastSpace > searchStart) {
+          splitAt = lastSpace + 1;
+        }
+      }
+
+      chunks.push(remaining.slice(0, splitAt));
+      remaining = remaining.slice(splitAt);
+    }
+
+    return chunks;
+  }
+
+  /**
+   * Send a message with Markdown parsing, falling back to plain text if parsing fails
+   */
+  private async sendWithMarkdown(chatId: string, text: string): Promise<void> {
+    try {
+      await this.bot!.api.sendMessage(chatId, text, { parse_mode: "Markdown" });
+    } catch (err: any) {
+      // If Markdown parsing failed, try again with plain text
+      if (err?.description?.includes("can't parse") || err?.description?.includes("parse entities")) {
+        logger.warn({ chatId, error: err.description }, "Markdown parse failed, sending as plain text");
+        await this.bot!.api.sendMessage(chatId, text);
+      } else {
+        // Some other error, re-throw
+        throw err;
+      }
+    }
+  }
+
   async sendMessage(jid: string, text: string): Promise<void> {
     if (!this.bot) {
       logger.warn("Telegram bot not initialized");
@@ -263,14 +322,13 @@ export class TelegramChannel implements Channel {
 
       // Telegram has a 4096 character limit per message — split if needed
       const MAX_LENGTH = 4096;
-      if (text.length <= MAX_LENGTH) {
-        await this.bot.api.sendMessage(numericId, text);
-      } else {
-        for (let i = 0; i < text.length; i += MAX_LENGTH) {
-          await this.bot.api.sendMessage(numericId, text.slice(i, i + MAX_LENGTH));
-        }
+      const chunks = this.splitMessageSafely(text, MAX_LENGTH);
+
+      for (const chunk of chunks) {
+        await this.sendWithMarkdown(numericId, chunk);
       }
-      logger.info({ jid, length: text.length }, "Telegram message sent");
+
+      logger.info({ jid, length: text.length, chunks: chunks.length }, "Telegram message sent");
     } catch (err) {
       logger.error({ jid, err }, "Failed to send Telegram message");
     }

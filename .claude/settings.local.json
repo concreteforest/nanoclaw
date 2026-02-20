@@ -38,9 +38,40 @@
       "Bash(git pull:*)",
       "Bash(git stash:*)",
       "Bash(launchctl unload:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(sudo systemctl stop:*)",
+      "Bash(docker system:*)",
+      "Bash(docker images:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(xargs ps:*)",
+      "Bash(xargs kill:*)",
+      "Bash(uvx workspace-mcp --help)",
+      "Bash(uvx:*)",
+      "Bash(netstat:*)",
+      "Bash(ss:*)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "mcp__google_workspace__search_gmail_messages",
+      "Bash(git reset:*)",
+      "Bash(killall:*)",
+      "Bash(xargs ls:*)",
+      "Bash(find:*)",
+      "Bash(sudo systemctl list-units:*)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "Bash(git restore:*)",
+      "Bash(ls:*)",
+      "Bash(node /tmp/add-mounts.js:*)",
+      "Bash(node add-mounts.js:*)",
+      "Bash(head:*)",
+      "Bash(for skill in .claude/skills/*/)",
+      "Bash(do if [ -f \"$skill/SKILL.md\" ])"
     ],
     "deny": [],
     "ask": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "google_workspace"
+  ]
 }
