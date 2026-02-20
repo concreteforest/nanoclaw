@@ -25,6 +25,7 @@ import {
   getAllRegisteredGroups,
   getAllSessions,
   getAllTasks,
+  getDefaultModel,
   getMessagesSince,
   getNewMessages,
   getRouterState,
@@ -249,6 +250,18 @@ async function runAgent(
   const isMain = group.folder === MAIN_GROUP_FOLDER;
   const sessionId = sessions[group.folder];
 
+  // Parse model override from prompt (e.g., "use haiku: ..." or "with opus: ...")
+  let actualPrompt = prompt;
+  let modelOverride: string | undefined;
+  const modelPrefixMatch = prompt.match(/^(use|with)\s+(haiku|sonnet|opus)[:\s]/i);
+  if (modelPrefixMatch) {
+    modelOverride = modelPrefixMatch[2].toLowerCase();
+    actualPrompt = prompt.slice(modelPrefixMatch[0].length).trim();
+  }
+
+  // Determine final model: override > global default
+  const model = modelOverride || getDefaultModel();
+
   // Update tasks snapshot for container to read (filtered by group)
   const tasks = getAllTasks();
   writeTasksSnapshot(
@@ -289,11 +302,12 @@ async function runAgent(
     const output = await runContainerAgent(
       group,
       {
-        prompt,
+        prompt: actualPrompt,
         sessionId,
         groupFolder: group.folder,
         chatJid,
         isMain,
+        model,
       },
       (proc, containerName) => queue.registerProcess(chatJid, proc, containerName, group.folder),
       wrappedOnOutput,

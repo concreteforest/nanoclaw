@@ -4,6 +4,7 @@ import {
   ASSISTANT_NAME,
   TRIGGER_PATTERN,
 } from "../config.js";
+import { getDefaultModel, setDefaultModel } from "../db.js";
 import { logger } from "../logger.js";
 import { Channel, OnInboundMessage, OnChatMetadata, RegisteredGroup } from "../types.js";
 
@@ -46,6 +47,38 @@ export class TelegramChannel implements Channel {
     // Command to check bot status
     this.bot.command("ping", (ctx) => {
       ctx.reply(`${ASSISTANT_NAME} is online.`);
+    });
+
+    // Command to view/set default model
+    this.bot.command("model", async (ctx) => {
+      if (!ctx.message) return;
+      const args = ctx.message.text.split(/\s+/).slice(1);
+      const adminUserId = process.env.TELEGRAM_ADMIN_ID;
+
+      if (args.length === 0) {
+        // View current default
+        const currentModel = getDefaultModel();
+        await ctx.reply(`Current default model: ${currentModel}`);
+        return;
+      }
+
+      // Set new default (admin only)
+      const requestedModel = args[0].toLowerCase();
+      const validModels = ['haiku', 'sonnet', 'opus'];
+
+      if (!validModels.includes(requestedModel)) {
+        await ctx.reply(`Invalid model. Choose: haiku, sonnet, or opus`);
+        return;
+      }
+
+      const senderId = ctx.from?.id.toString();
+      if (adminUserId && senderId !== adminUserId) {
+        await ctx.reply('Only the admin can change the default model');
+        return;
+      }
+
+      setDefaultModel(requestedModel);
+      await ctx.reply(`Default model set to ${requestedModel}`);
     });
 
     this.bot.on("message:text", async (ctx) => {

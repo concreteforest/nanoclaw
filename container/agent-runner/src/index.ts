@@ -27,6 +27,7 @@ interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   secrets?: Record<string, string>;
+  model?: string;
 }
 
 interface ContainerOutput {
@@ -45,6 +46,17 @@ interface SessionEntry {
 
 interface SessionsIndex {
   entries: SessionEntry[];
+}
+
+// Model alias mapping - using LiteLLM provider-prefixed model names
+const MODEL_ALIASES: Record<string, string> = {
+  haiku: 'bedrock-claude-4-5-haiku',
+  sonnet: 'vertex-claude-4-5-sonnet',
+  opus: 'bedrock-anthropic-claude-4-5-opus',
+};
+
+function resolveModel(alias: string): string {
+  return MODEL_ALIASES[alias.toLowerCase()] || alias;
 }
 
 interface SDKUserMessage {
@@ -413,6 +425,12 @@ async function runQuery(
     log(`Additional directories: ${extraDirs.join(', ')}`);
   }
 
+  // Resolve model alias to full model name
+  const resolvedModel = containerInput.model ? resolveModel(containerInput.model) : undefined;
+  if (resolvedModel) {
+    log(`Using model: ${resolvedModel} (from alias: ${containerInput.model})`);
+  }
+
   for await (const message of query({
     prompt: stream,
     options: {
@@ -420,6 +438,7 @@ async function runQuery(
       additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
       resume: sessionId,
       resumeSessionAt: resumeAt,
+      model: resolvedModel,
       systemPrompt: globalClaudeMd
         ? { type: 'preset' as const, preset: 'claude_code' as const, append: globalClaudeMd }
         : undefined,

@@ -54,6 +54,7 @@ export interface ContainerInput {
   isMain: boolean;
   isScheduledTask?: boolean;
   secrets?: Record<string, string>;
+  model?: string;
 }
 
 export interface ContainerOutput {

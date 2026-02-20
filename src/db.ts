@@ -73,6 +73,10 @@ function createSchema(database: Database.Database): void {
       container_config TEXT,
       requires_trigger INTEGER DEFAULT 1
     );
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   // Add context_mode column if it doesn't exist (migration for existing DBs)
@@ -547,6 +551,30 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
     };
   }
   return result;
+}
+
+// --- Settings ---
+
+export function getGlobalSetting(key: string): string | null {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key) as
+    | { value: string }
+    | undefined;
+  return row ? row.value : null;
+}
+
+export function setGlobalSetting(key: string, value: string): void {
+  db.prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)').run(
+    key,
+    value,
+  );
+}
+
+export function getDefaultModel(): string {
+  return getGlobalSetting('default_model') || 'sonnet';
+}
+
+export function setDefaultModel(model: string): void {
+  setGlobalSetting('default_model', model);
 }
 
 // --- JSON migration ---
