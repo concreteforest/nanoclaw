@@ -1,0 +1,25 @@
+skills:
+  - discord
+  - telegram
+apply_order:
+  - telegram
+  - discord
+resolved_at: 2026-02-23T16:25:46.539Z
+tested: true
+test_passed: true
+resolution_source: generated
+input_hashes: {}
+output_hash: ""
+file_hashes:
+  src/index.ts:
+    base: 6b79ec0bf4f2a4b6cd91258afeef44cb9f9212baf3bea0a9addc1c404f3b87f4
+    current: 38300096e17e4c5c9a883bf45eadea68a369782cee912444634667cbe74e9062
+    skill: 33327ba1fb0614a0f542812cdcdf09679857cda8450e04aeeff2bd7805949879
+  src/config.ts:
+    base: 2af95a0b445c173e7997ed8b52f36c395c1a27fd2a8dc5c3b15c2ec4ec8b611c
+    current: 19c175c3f3bdc28c1230e4364debb8d561aa628e482c92ad247ed8181c7f0781
+    skill: 08b7f680625dca0722e541ab96f34bd454232bcc27183ad96bb30f8d2964af2c
+  src/routing.test.ts:
+    base: 8b94879f63f929f12b5577dc178e2ea4a25895b5048e89df9dea162e66c1dbdb
+    current: 9269a04663c2acb5538a0770d352bf2ae83900af5a54aa9a696ff15e2be9146a
+    skill: 180c7c66dee390682a4298e0b4a96363113cf937bb4fc99eee49e83bd5dfd21f
