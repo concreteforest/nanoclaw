@@ -15,6 +15,7 @@ import {
   getDueTasks,
   getTaskById,
   logTaskRun,
+  markTaskRunning,
   updateTask,
   updateTaskAfterRun,
 } from './db.js';
@@ -226,7 +227,7 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
       for (const task of dueTasks) {
         // Re-check task status in case it was paused/cancelled
         const currentTask = getTaskById(task.id);
-        if (!currentTask || currentTask.status !== 'active') {
+        if (!currentTask || (currentTask.status !== 'active' && currentTask.status !== 'running')) {
           continue;
         }
 
@@ -248,6 +249,13 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
         // Only update if we computed a valid next_run (not for 'once' tasks)
         if (tempNextRun) {
           updateTask(currentTask.id, { next_run: tempNextRun });
+        }
+
+        // Atomically lock the task in the database before proceeding
+        const locked = markTaskRunning(currentTask.id);
+        if (!locked) {
+          logger.debug({ taskId: currentTask.id }, 'Task was already locked by another process or poll cycle, skipping');
+          continue;
         }
 
         deps.queue.enqueueTask(

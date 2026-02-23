@@ -21,6 +21,7 @@ import {
 import { cleanupOrphans, ensureContainerRuntimeRunning } from './container-runtime.js';
 import {
   createTask,
+  db,
   getAllChats,
   getAllRegisteredGroups,
   getAllSessions,
@@ -526,6 +527,9 @@ function recoverPendingMessages(): void {
   // and may represent messages that were piped but never confirmed.
   // These messages will be picked up by the normal recovery logic below.
   pipedTimestamp = {};
+
+  // Recover any scheduled tasks that were locked in 'running' state during a crash
+  db.prepare("UPDATE scheduled_tasks SET status = 'active' WHERE status = 'running'").run();
 
   for (const [chatJid, group] of Object.entries(registeredGroups)) {
     const sinceTimestamp = lastAgentTimestamp[chatJid] || '';

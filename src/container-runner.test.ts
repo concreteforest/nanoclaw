@@ -15,6 +15,7 @@ vi.mock('./config.js', () => ({
   GROUPS_DIR: '/tmp/nanoclaw-test-groups',
   IDLE_TIMEOUT: 1800000, // 30min
   TIMEZONE: 'America/Los_Angeles',
+  DAILY_BUDGET_USD: 1.50,
 }));
 
 // Mock logger
@@ -25,6 +26,10 @@ vi.mock('./logger.js', () => ({
     warn: vi.fn(),
     error: vi.fn(),
   },
+}));
+
+vi.mock('./cost-tracker.js', () => ({
+  getDailyCostUSD: vi.fn(() => 0.0),
 }));
 
 // Mock fs
@@ -115,11 +120,11 @@ describe('container-runner timeout behavior', () => {
   });
 
   it('timeout after output resolves as success', async () => {
-    const onOutput = vi.fn(async () => {});
+    const onOutput = vi.fn(async () => { });
     const resultPromise = runContainerAgent(
       testGroup,
       testInput,
-      () => {},
+      () => { },
       onOutput,
     );
 
@@ -151,11 +156,11 @@ describe('container-runner timeout behavior', () => {
   });
 
   it('timeout with no output resolves as error', async () => {
-    const onOutput = vi.fn(async () => {});
+    const onOutput = vi.fn(async () => { });
     const resultPromise = runContainerAgent(
       testGroup,
       testInput,
-      () => {},
+      () => { },
       onOutput,
     );
 
@@ -174,11 +179,11 @@ describe('container-runner timeout behavior', () => {
   });
 
   it('normal exit after output resolves as success', async () => {
-    const onOutput = vi.fn(async () => {});
+    const onOutput = vi.fn(async () => { });
     const resultPromise = runContainerAgent(
       testGroup,
       testInput,
-      () => {},
+      () => { },
       onOutput,
     );
 
