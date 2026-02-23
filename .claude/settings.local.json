@@ -71,7 +71,22 @@
       "Bash(sh:*)",
       "Bash(crontab:*)",
       "Bash(test:*)",
-      "Bash(test -f:*)"
+      "Bash(test -f:*)",
+      "Bash(docker run:*)",
+      "Bash(sudo cp:*)",
+      "Skill(add-budget-limit)",
+      "Skill(add-clear)",
+      "Skill(add-log-rotation)",
+      "Skill(add-sys-monitor)",
+      "Skill(add-vps-admin)",
+      "Bash(sudo mkdir:*)",
+      "Bash(sudo bash -c 'cat > /opt/nanoclaw/scripts/check_disk.sh << '\"''\"'EOF'\"''\"'\n#!/bin/bash\necho \"\"=== Disk Space ===\"\"\ndf -h /\necho \"\"=== Memory ===\"\"\nfree -h\nEOF\nchmod +x /opt/nanoclaw/scripts/check_disk.sh')",
+      "WebFetch(domain:100.85.181.51)",
+      "Bash(docker network inspect:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(chmod:*)",
+      "Bash(docker inspect:*)"
     ],
     "deny": [],
     "ask": []

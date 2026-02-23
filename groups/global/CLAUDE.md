@@ -56,3 +56,16 @@ NEVER use markdown. Only use WhatsApp/Telegram formatting:
 - ```triple backticks``` for code
 
 No ## headings. No [links](url). No **double stars**.
+
+---
+
+## Video Services Access
+
+Kris has access to the following streaming services (*Canadian versions*):
+- Netflix (CA)
+- Amazon Prime Video (CA)
+- Apple TV (CA)
+- Discovery+ (CA)
+- Rogers Cable Television (CA)
+
+**Usage:** When Kris asks for movie or TV show recommendations, consider these services. When suggesting content, ensure it's available on at least one of these platforms in Canada.

@@ -200,6 +200,9 @@ async function runTask(
     : result
       ? result.slice(0, 200)
       : 'Completed';
+  // Note: nextRun is already set in the scheduler loop before enqueuing.
+  // Here we only update the result/run metadata; next_run should remain unchanged
+  // unless the task completed its recurrence (marked as 'completed' status).
   updateTaskAfterRun(task.id, nextRun, resultSummary);
 }
 
@@ -225,6 +228,26 @@ export function startSchedulerLoop(deps: SchedulerDependencies): void {
         const currentTask = getTaskById(task.id);
         if (!currentTask || currentTask.status !== 'active') {
           continue;
+        }
+
+        // Atomically mark the task as "running" by computing and setting its next_run
+        // BEFORE enqueuing. This prevents duplicate enqueuing during the poll cycles
+        // while the task is executing.
+        let tempNextRun: string | null = null;
+        if (currentTask.schedule_type === 'cron') {
+          const interval = CronExpressionParser.parse(currentTask.schedule_value, {
+            tz: TIMEZONE,
+          });
+          tempNextRun = interval.next().toISOString();
+        } else if (currentTask.schedule_type === 'interval') {
+          const ms = parseInt(currentTask.schedule_value, 10);
+          tempNextRun = new Date(Date.now() + ms).toISOString();
+        }
+        // 'once' tasks have no next run
+
+        // Only update if we computed a valid next_run (not for 'once' tasks)
+        if (tempNextRun) {
+          updateTask(currentTask.id, { next_run: tempNextRun });
         }
 
         deps.queue.enqueueTask(

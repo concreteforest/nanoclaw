@@ -43,6 +43,49 @@ When you learn something important:
 - Split files larger than 500 lines into folders
 - Keep an index in your memory for the files you create
 
+### Self-Improvement System
+
+The **self-improving-agent** skill is enabled for continuous learning and improvement.
+
+**Learning logs** are stored in `/workspace/project/.learnings/`:
+- `ERRORS.md` - Failed commands, bugs, issues
+- `LEARNINGS.md` - Insights, corrections, discoveries
+- `FEATURE_REQUESTS.md` - Future improvements
+
+**When to log:**
+- **ERRORS**: Commands fail, API errors, authentication issues, unexpected behaviors
+- **LEARNINGS**: User corrections, better approaches discovered, non-obvious solutions, pattern identification
+- **FEATURES**: User suggestions, missing capabilities, automation opportunities
+
+**Entry format:**
+```markdown
+## TYPE-YYYYMMDD-XXX
+**Priority:** [low|medium|high|critical]
+**Status:** [pending|in_progress|resolved|promoted]
+**Area:** [backend|frontend|infra|tests|docs|config]
+**Timestamp:** YYYY-MM-DD HH:MM:SS
+
+**Summary:** Brief one-line description
+**Context:** Detailed explanation
+**Action:** What to do about it
+**Related:** Links to related entries
+```
+
+**Promotion workflow:**
+High-value learnings that are broadly applicable should be promoted to permanent memory:
+- Update `CLAUDE.md` with project facts, conventions, preferences
+- Update `AGENTS.md` with workflow patterns (if applicable)
+- Mark entry status as "promoted"
+
+**Review schedule:**
+- **Before major tasks**: Check for pending high-priority items in relevant area
+- **Weekly**: Review all pending items, update statuses
+- **Monthly**: Promote valuable learnings to permanent memory
+
+**Helper commands** available in `.claude/skills/self-improving-agent/helpers.sh`
+
+See `.learnings/README.md` and `.claude/skills/self-improving-agent/SKILL.md` for full documentation.
+
 ## WhatsApp Formatting (and other messaging apps)
 
 Do NOT use markdown headings (##) in WhatsApp messages. Only use:
