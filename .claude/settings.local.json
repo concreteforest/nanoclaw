@@ -65,7 +65,13 @@
       "Bash(node add-mounts.js:*)",
       "Bash(head:*)",
       "Bash(for skill in .claude/skills/*/)",
-      "Bash(do if [ -f \"$skill/SKILL.md\" ])"
+      "Bash(do if [ -f \"$skill/SKILL.md\" ])",
+      "Skill(add-proactive-memory)",
+      "Skill(add-ontology-memory)",
+      "Bash(sh:*)",
+      "Bash(crontab:*)",
+      "Bash(test:*)",
+      "Bash(test -f:*)"
     ],
     "deny": [],
     "ask": []
