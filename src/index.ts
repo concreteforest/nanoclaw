@@ -506,6 +506,12 @@ async function startMessageLoop(): Promise<void> {
     } catch (err) {
       logger.error({ err }, 'Error in message loop');
     }
+
+    // External Service Watchdog Heartbeat
+    try {
+      fs.writeFileSync('.health', Date.now().toString());
+    } catch { /* ignore heartbeat errors */ }
+
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
   }
 }
