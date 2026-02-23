@@ -284,7 +284,7 @@ async function runAgent(
   // Parse model override from prompt (e.g., "use haiku: ..." or "with opus: ...")
   let actualPrompt = prompt;
   let modelOverride: string | undefined;
-  const modelPrefixMatch = prompt.match(/^(use|with)\s+(haiku|sonnet|opus)[:\s]/i);
+  const modelPrefixMatch = prompt.match(/^(use|with)\s+(haiku|sonnet|opus|gemini-2\.5-flash|gemini-3)[:\s]/i);
   if (modelPrefixMatch) {
     modelOverride = modelPrefixMatch[2].toLowerCase();
     actualPrompt = prompt.slice(modelPrefixMatch[0].length).trim();
