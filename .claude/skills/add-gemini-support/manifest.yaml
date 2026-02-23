@@ -1,0 +1,11 @@
+skill: add-gemini-support
+version: 1.0.0
+description: Adds support for Google Gemini models by bypassing the LiteLLM proxy locally.
+core_version: 1.0.0
+adds: []
+modifies:
+  - .env.example
+  - container/agent-runner/src/index.ts
+  - src/channels/telegram.ts
+  - src/container-runner.ts
+  - src/cost-tracker.ts
