@@ -7,5 +7,6 @@ modifies:
   - .env.example
   - container/agent-runner/src/index.ts
   - src/channels/telegram.ts
+  - src/index.ts
   - src/container-runner.ts
   - src/cost-tracker.ts

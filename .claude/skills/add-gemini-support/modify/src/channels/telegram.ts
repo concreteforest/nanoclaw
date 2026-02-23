@@ -64,10 +64,10 @@ export class TelegramChannel implements Channel {
 
       // Set new default (admin only)
       const requestedModel = args[0].toLowerCase();
-      const validModels = ['haiku', 'sonnet', 'opus'];
+      const validModels = ['haiku', 'sonnet', 'opus', 'gemini-2.5-flash', 'gemini-3'];
 
       if (!validModels.includes(requestedModel)) {
-        await ctx.reply(`Invalid model. Choose: haiku, sonnet, or opus`);
+        await ctx.reply(`Invalid model. Choose: haiku, sonnet, opus, gemini-2.5-flash, or gemini-3`);
         return;
       }
 
