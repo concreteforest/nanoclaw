@@ -373,7 +373,7 @@ Shows costs per day to help identify usage trends and spikes. Default is last 30
 
     // Wait for response file
     const responseDir = path.join(IPC_DIR, 'responses');
-    fs.mkdirSync(responseDir, { recursive: true});
+    fs.mkdirSync(responseDir, { recursive: true });
 
     // Poll for response (with 5 second timeout)
     for (let i = 0; i < 50; i++) {
@@ -389,6 +389,84 @@ Shows costs per day to help identify usage trends and spikes. Default is last 30
 
     return { content: [{ type: 'text' as const, text: 'Timeout waiting for daily costs.' }] };
   },
+);
+
+server.tool(
+  'create_entity',
+  'Create a new knowledge graph entity (e.g., person, place, concept, event).',
+  {
+    id: z.string().describe('Unique, snake_case identifier for this entity (e.g., "john_doe")'),
+    type: z.string().describe('Type or category of the entity (e.g., "person", "organization")'),
+    name: z.string().describe('Human-readable display name'),
+    attributes: z.string().optional().describe('JSON string of optional metadata key-value pairs')
+  },
+  async (args) => {
+    const data = {
+      type: 'create_entity',
+      id: args.id,
+      entityType: args.type,
+      name: args.name,
+      attributes: args.attributes,
+      timestamp: new Date().toISOString()
+    };
+    writeIpcFile(TASKS_DIR, data);
+    return { content: [{ type: 'text' as const, text: `Entity created: ${args.id}` }] };
+  }
+);
+
+server.tool(
+  'link_entities',
+  'Create a relationship between two entities in the knowledge graph.',
+  {
+    source_id: z.string().describe('The ID of the source entity'),
+    target_id: z.string().describe('The ID of the target entity'),
+    relation_type: z.string().describe('The type of relationship (e.g., "likes", "knows", "has_skill")'),
+    metadata: z.string().optional().describe('JSON string of optional data about the relationship')
+  },
+  async (args) => {
+    const data = {
+      type: 'link_entities',
+      source_id: args.source_id,
+      target_id: args.target_id,
+      relation_type: args.relation_type,
+      metadata: args.metadata,
+      timestamp: new Date().toISOString()
+    };
+    writeIpcFile(TASKS_DIR, data);
+    return { content: [{ type: 'text' as const, text: `Linked ${args.source_id} -> ${args.target_id} (${args.relation_type})` }] };
+  }
+);
+
+server.tool(
+  'query_ontology',
+  'Query the knowledge graph for entities and their relationships.',
+  {
+    query: z.string().describe('Search query keyword to match against entity names, types, or attributes')
+  },
+  async (args) => {
+    const data = {
+      type: 'query_ontology',
+      query: args.query,
+      groupFolder,
+      timestamp: new Date().toISOString()
+    };
+    writeIpcFile(TASKS_DIR, data);
+
+    const responsesDir = path.join(IPC_DIR, 'responses');
+    fs.mkdirSync(responsesDir, { recursive: true });
+
+    for (let i = 0; i < 50; i++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const files = fs.readdirSync(responsesDir);
+      const responseFile = files.find(f => f.startsWith('query_ontology_'));
+      if (responseFile) {
+        const content = fs.readFileSync(path.join(responsesDir, responseFile), 'utf-8');
+        fs.unlinkSync(path.join(responsesDir, responseFile));
+        return { content: [{ type: 'text' as const, text: content }] };
+      }
+    }
+    return { content: [{ type: 'text' as const, text: 'Timeout waiting for ontology query results.' }] };
+  }
 );
 
 // Start the stdio transport

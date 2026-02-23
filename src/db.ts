@@ -7,7 +7,7 @@ import { isValidGroupFolder } from './group-folder.js';
 import { logger } from './logger.js';
 import { NewMessage, RegisteredGroup, ScheduledTask, TaskRunLog } from './types.js';
 
-let db: Database.Database;
+export let db: Database.Database;
 
 function createSchema(database: Database.Database): void {
   database.exec(`
@@ -81,6 +81,27 @@ function createSchema(database: Database.Database): void {
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS entities (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      name TEXT NOT NULL,
+      attributes TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS relations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      source_id TEXT NOT NULL,
+      target_id TEXT NOT NULL,
+      relation_type TEXT NOT NULL,
+      metadata TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (source_id) REFERENCES entities (id) ON DELETE CASCADE,
+      FOREIGN KEY (target_id) REFERENCES entities (id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_entities_name ON entities(name);
+    CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
+    CREATE INDEX IF NOT EXISTS idx_relations_source ON relations(source_id);
+    CREATE INDEX IF NOT EXISTS idx_relations_target ON relations(target_id);
   `);
 
   // Add context_mode column if it doesn't exist (migration for existing DBs)
@@ -518,14 +539,14 @@ export function getRegisteredGroup(
     .prepare('SELECT * FROM registered_groups WHERE jid = ?')
     .get(jid) as
     | {
-        jid: string;
-        name: string;
-        folder: string;
-        trigger_pattern: string;
-        added_at: string;
-        container_config: string | null;
-        requires_trigger: number | null;
-      }
+      jid: string;
+      name: string;
+      folder: string;
+      trigger_pattern: string;
+      added_at: string;
+      container_config: string | null;
+      requires_trigger: number | null;
+    }
     | undefined;
   if (!row) return undefined;
   if (!isValidGroupFolder(row.folder)) {
@@ -573,14 +594,14 @@ export function getAllRegisteredGroups(): Record<string, RegisteredGroup> {
   const rows = db
     .prepare('SELECT * FROM registered_groups')
     .all() as Array<{
-    jid: string;
-    name: string;
-    folder: string;
-    trigger_pattern: string;
-    added_at: string;
-    container_config: string | null;
-    requires_trigger: number | null;
-  }>;
+      jid: string;
+      name: string;
+      folder: string;
+      trigger_pattern: string;
+      added_at: string;
+      container_config: string | null;
+      requires_trigger: number | null;
+    }>;
   const result: Record<string, RegisteredGroup> = {};
   for (const row of rows) {
     if (!isValidGroupFolder(row.folder)) {

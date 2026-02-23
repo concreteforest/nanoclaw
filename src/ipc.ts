@@ -181,12 +181,23 @@ export async function processTaskIpc(
     output_tokens?: number;
     cache_write_tokens?: number;
     cache_read_tokens?: number;
+    // For ontology
+    id?: string;
+    entityType?: string;
+    attributes?: string;
+    source_id?: string;
+    target_id?: string;
+    relation_type?: string;
+    metadata?: string;
+    query?: string;
   },
   sourceGroup: string, // Verified identity from IPC directory
   isMain: boolean, // Verified from directory path
   deps: IpcDeps,
 ): Promise<void> {
   const registeredGroups = deps.registeredGroups();
+  // We'll require memory dynamically so we don't crash if db isn't initialized yet
+  const memory = await import('./memory.js').catch(() => null);
 
   switch (data.type) {
     case 'schedule_task':
@@ -403,7 +414,7 @@ export async function processTaskIpc(
 
         // Write response to IPC responses directory
         const responsesDir = path.join(DATA_DIR, 'ipc', sourceGroup, 'responses');
-        fs.mkdirSync(responsesDir, { recursive: true});
+        fs.mkdirSync(responsesDir, { recursive: true });
         const responseFile = path.join(
           responsesDir,
           `cost_summary_${Date.now()}.txt`,
@@ -482,6 +493,44 @@ export async function processTaskIpc(
         }
       } else {
         logger.warn({ data }, 'Invalid log_token_usage request - missing required fields');
+      }
+      break;
+
+    case 'create_entity':
+      if (memory && data.id && data.entityType && data.name) {
+        try {
+          memory.createEntity(data.id, data.entityType, data.name, data.attributes ? JSON.parse(data.attributes) : {});
+          logger.info({ id: data.id, sourceGroup }, 'Entity created via IPC');
+        } catch (err) {
+          logger.error({ err, sourceGroup }, 'Error creating entity');
+        }
+      }
+      break;
+
+    case 'link_entities':
+      if (memory && data.source_id && data.target_id && data.relation_type) {
+        try {
+          memory.linkEntities(data.source_id, data.target_id, data.relation_type, data.metadata ? JSON.parse(data.metadata) : {});
+          logger.info({ source_id: data.source_id, target_id: data.target_id, sourceGroup }, 'Entities linked via IPC');
+        } catch (err) {
+          logger.error({ err, sourceGroup }, 'Error linking entities');
+        }
+      }
+      break;
+
+    case 'query_ontology':
+      if (memory && data.query) {
+        try {
+          const results = memory.queryOntology(data.query);
+          const report = JSON.stringify(results, null, 2);
+          const responsesDir = path.join(DATA_DIR, 'ipc', sourceGroup, 'responses');
+          fs.mkdirSync(responsesDir, { recursive: true });
+          const responseFile = path.join(responsesDir, `query_ontology_${Date.now()}.json`);
+          fs.writeFileSync(responseFile, report);
+          logger.info({ query: data.query, sourceGroup }, 'Ontology queried via IPC');
+        } catch (err) {
+          logger.error({ err, sourceGroup }, 'Error querying ontology');
+        }
       }
       break;
 
