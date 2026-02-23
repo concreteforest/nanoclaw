@@ -1,10 +1,8 @@
-import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 import {
   ASSISTANT_NAME,
-  DATA_DIR,
   IDLE_TIMEOUT,
   MAIN_GROUP_FOLDER,
   POLL_INTERVAL,
@@ -20,6 +18,7 @@ import {
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
+import { cleanupOrphans, ensureContainerRuntimeRunning } from './container-runtime.js';
 import {
   createTask,
   getAllChats,
@@ -40,6 +39,7 @@ import {
 } from './db.js';
 import { initCostTracking } from './cost-tracker.js';
 import { GroupQueue } from './group-queue.js';
+import { resolveGroupFolderPath } from './group-folder.js';
 import { startIpcWatcher } from './ipc.js';
 import { findChannel, formatMessages, formatOutbound } from './router.js';
 import { startSchedulerLoop } from './task-scheduler.js';
@@ -86,11 +86,21 @@ function saveState(): void {
 }
 
 function registerGroup(jid: string, group: RegisteredGroup): void {
+  let groupDir: string;
+  try {
+    groupDir = resolveGroupFolderPath(group.folder);
+  } catch (err) {
+    logger.warn(
+      { jid, folder: group.folder, err },
+      'Rejecting group registration with invalid folder',
+    );
+    return;
+  }
+
   registeredGroups[jid] = group;
   setRegisteredGroup(jid, group);
 
   // Create group folder
-  const groupDir = path.join(DATA_DIR, '..', 'groups', group.folder);
   fs.mkdirSync(path.join(groupDir, 'logs'), { recursive: true });
 
   logger.info(
@@ -108,7 +118,7 @@ export function getAvailableGroups(): import('./container-runner.js').AvailableG
   const registeredJids = new Set(Object.keys(registeredGroups));
 
   return chats
-    .filter((c) => c.jid !== '__group_sync__' && (c.jid.endsWith('@g.us') || c.jid.startsWith('tg:')))
+    .filter((c) => c.jid !== '__group_sync__' && (c.is_group || c.jid.endsWith('@g.us') || c.jid.startsWith('tg:')))
     .map((c) => ({
       jid: c.jid,
       name: c.name,
@@ -129,6 +139,12 @@ export function _setRegisteredGroups(groups: Record<string, RegisteredGroup>): v
 async function processGroupMessages(chatJid: string): Promise<boolean> {
   const group = registeredGroups[chatJid];
   if (!group) return true;
+
+  const channel = findChannel(channels, chatJid);
+  if (!channel) {
+    console.log(`Warning: no channel owns JID ${chatJid}, skipping messages`);
+    return true;
+  }
 
   const isMainGroup = group.folder === MAIN_GROUP_FOLDER;
 
@@ -192,12 +208,6 @@ Your task is to:
     }, IDLE_TIMEOUT);
   };
 
-  // Find the channel for this JID
-  const channel = findChannel(channels, chatJid);
-  if (!channel) {
-    logger.error({ chatJid }, 'No channel found for JID');
-    return false;
-  }
 
   await channel.setTyping?.(chatJid, true);
   let hadError = false;
@@ -217,6 +227,10 @@ Your task is to:
       }
       // Only reset idle timer on actual results, not session-update markers (result: null)
       resetIdleTimer();
+    }
+
+    if (result.status === 'success') {
+      queue.notifyIdle(chatJid);
     }
 
     if (result.status === 'error') {
@@ -307,12 +321,12 @@ async function runAgent(
   // Wrap onOutput to track session ID from streamed results
   const wrappedOnOutput = onOutput
     ? async (output: ContainerOutput) => {
-        if (output.newSessionId) {
-          sessions[group.folder] = output.newSessionId;
-          setSession(group.folder, output.newSessionId);
-        }
-        await onOutput(output);
+      if (output.newSessionId) {
+        sessions[group.folder] = output.newSessionId;
+        setSession(group.folder, output.newSessionId);
       }
+      await onOutput(output);
+    }
     : undefined;
 
   try {
@@ -325,6 +339,7 @@ async function runAgent(
         chatJid,
         isMain,
         model,
+        assistantName: ASSISTANT_NAME,
       },
       (proc, containerName) => queue.registerProcess(chatJid, proc, containerName, group.folder),
       wrappedOnOutput,
@@ -386,6 +401,12 @@ async function startMessageLoop(): Promise<void> {
           const group = registeredGroups[chatJid];
           if (!group) {
             logger.warn({ chatJid }, 'Message for unregistered group, skipping');
+            continue;
+          }
+
+          const channel = findChannel(channels, chatJid);
+          if (!channel) {
+            console.log(`Warning: no channel owns JID ${chatJid}, skipping messages`);
             continue;
           }
 
@@ -469,8 +490,9 @@ async function startMessageLoop(): Promise<void> {
             );
 
             // Show typing indicator while the container processes the piped message
-            const channel = findChannel(channels, chatJid);
-            if (channel) channel.setTyping?.(chatJid, true);
+            channel.setTyping?.(chatJid, true)?.catch((err) =>
+              logger.warn({ chatJid, err }, 'Failed to set typing indicator'),
+            );
           } else {
             // No active container — enqueue for a new one
             logger.info(
@@ -534,116 +556,8 @@ function ensureLogRotationTask(): void {
 }
 
 function ensureContainerSystemRunning(): void {
-  // Detect runtime: check for Docker first (Linux default), then Apple Container (macOS)
-  const isDockerAvailable = (() => {
-    try {
-      execSync('docker info', { stdio: 'pipe' });
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-
-  const isAppleContainerAvailable = (() => {
-    try {
-      execSync('container system status', { stdio: 'pipe' });
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-
-  // Use Docker if available, otherwise Apple Container
-  if (isDockerAvailable) {
-    logger.info('Using Docker as container runtime');
-    // Docker doesn't need system start, just verify it's running
-    // Clean up orphaned containers
-    try {
-      const output = execSync('docker ps --filter "name=nanoclaw-" --format "{{.Names}}"', {
-        stdio: ['pipe', 'pipe', 'pipe'],
-        encoding: 'utf-8',
-      });
-      const orphans = output.trim().split('\n').filter(n => n);
-      for (const name of orphans) {
-        try {
-          execSync(`docker stop ${name}`, { stdio: 'pipe' });
-          logger.debug({ name }, 'Stopped orphaned Docker container');
-        } catch { /* already stopped */ }
-      }
-      if (orphans.length > 0) {
-        logger.info({ count: orphans.length, names: orphans }, 'Stopped orphaned containers');
-      }
-    } catch (err) {
-      logger.warn({ err }, 'Failed to clean up orphaned Docker containers');
-    }
-    return;
-  }
-
-  if (isAppleContainerAvailable) {
-    logger.debug('Apple Container system already running');
-  } else {
-    logger.info('Starting Apple Container system...');
-    try {
-      execSync('container system start', { stdio: 'pipe', timeout: 30000 });
-      logger.info('Apple Container system started');
-    } catch (err) {
-      logger.error({ err }, 'Failed to start Apple Container system');
-      console.error(
-        '\n╔════════════════════════════════════════════════════════════════╗',
-      );
-      console.error(
-        '║  FATAL: Container system failed to start                      ║',
-      );
-      console.error(
-        '║                                                                ║',
-      );
-      console.error(
-        '║  Agents cannot run without a container runtime. To fix:       ║',
-      );
-      console.error(
-        '║  - Docker: Install from https://docker.com                    ║',
-      );
-      console.error(
-        '║  - Apple Container: https://github.com/apple/container        ║',
-      );
-      console.error(
-        '║                                                                ║',
-      );
-      console.error(
-        '║  Then restart NanoClaw                                        ║',
-      );
-      console.error(
-        '╚════════════════════════════════════════════════════════════════╝\n',
-      );
-      throw new Error('Container system is required but failed to start');
-    }
-  }
-
-  // Kill and clean up orphaned NanoClaw containers from previous runs (Apple Container)
-  try {
-    const listJson = execSync('container ls -a --format json', {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      encoding: 'utf-8',
-    });
-    const containers = JSON.parse(listJson) as Array<{ configuration: { id: string }; status: string }>;
-    const nanoclawContainers = containers.filter(
-      (c) => c.configuration.id.startsWith('nanoclaw-'),
-    );
-    const running = nanoclawContainers
-      .filter((c) => c.status === 'running')
-      .map((c) => c.configuration.id);
-    if (running.length > 0) {
-      execSync(`container stop ${running.join(' ')}`, { stdio: 'pipe' });
-      logger.info({ count: running.length }, 'Stopped orphaned containers');
-    }
-    const allNames = nanoclawContainers.map((c) => c.configuration.id);
-    if (allNames.length > 0) {
-      execSync(`container rm ${allNames.join(' ')}`, { stdio: 'pipe' });
-      logger.info({ count: allNames.length }, 'Cleaned up stopped containers');
-    }
-  } catch {
-    // No containers or cleanup not supported
-  }
+  ensureContainerRuntimeRunning();
+  cleanupOrphans();
 }
 
 async function main(): Promise<void> {
@@ -667,9 +581,9 @@ async function main(): Promise<void> {
 
   // Channel callbacks (shared by all channels)
   const channelOpts = {
-    onMessage: (chatJid: string, msg: NewMessage) => storeMessage(msg),
-    onChatMetadata: (chatJid: string, timestamp: string, name?: string) =>
-      storeChatMetadata(chatJid, timestamp, name),
+    onMessage: (_chatJid: string, msg: NewMessage) => storeMessage(msg),
+    onChatMetadata: (chatJid: string, timestamp: string, name?: string, channel?: string, isGroup?: boolean) =>
+      storeChatMetadata(chatJid, timestamp, name, channel, isGroup),
     registeredGroups: () => registeredGroups,
   };
 
@@ -694,7 +608,10 @@ async function main(): Promise<void> {
     onProcess: (groupJid, proc, containerName, groupFolder) => queue.registerProcess(groupJid, proc, containerName, groupFolder),
     sendMessage: async (jid, rawText) => {
       const channel = findChannel(channels, jid);
-      if (!channel) return;
+      if (!channel) {
+        console.log(`Warning: no channel owns JID ${jid}, cannot send message`);
+        return;
+      }
       const text = formatOutbound(rawText);
       if (text) await channel.sendMessage(jid, text);
     },
@@ -713,7 +630,10 @@ async function main(): Promise<void> {
   });
   queue.setProcessMessagesFn(processGroupMessages);
   recoverPendingMessages();
-  startMessageLoop();
+  startMessageLoop().catch((err) => {
+    logger.fatal({ err }, 'Message loop crashed unexpectedly');
+    process.exit(1);
+  });
 }
 
 // Guard: only run when executed directly, not when imported by tests
