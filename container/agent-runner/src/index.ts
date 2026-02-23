@@ -410,6 +410,31 @@ async function runQuery(
     globalClaudeMd = fs.readFileSync(globalClaudeMdPath, 'utf-8');
   }
 
+  // BEGIN ADD-PROACTIVE-MEMORY
+  const bufferTxtPath = '/workspace/group/buffer.txt';
+  let bufferTxtContext = '';
+  if (fs.existsSync(bufferTxtPath)) {
+    try {
+      bufferTxtContext = fs.readFileSync(bufferTxtPath, 'utf-8');
+    } catch { /* ignore */ }
+  }
+
+  const proactiveInstructions = `
+
+# Proactive Memory System
+You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
+1. **Working Buffer:** The content of \`buffer.txt\` in your group folder is loaded into your context. Use bash tools (e.g. \`echo "..." > buffer.txt\`) to maintain a scratchpad of ongoing long-term goals, important status updates, or to-dos that need surviving across sessions.
+2. **Write-Ahead Log (WAL):** When reasoning about complex tasks or analyzing data, enclose your thought process in \`<wal>...</wal>\` tags. This reasoning acts as your internal decision log. The system will automatically strip these tags before sending your final output to the user, allowing you to "think out loud" without polluting the channel.
+`;
+
+  // Append proactive components to the system prompt
+  globalClaudeMd = (globalClaudeMd || '') + proactiveInstructions;
+  if (bufferTxtContext) {
+    globalClaudeMd += `\n\n## Current Working Buffer (\`buffer.txt\`)\n${bufferTxtContext}\n`;
+  }
+  globalClaudeMd = globalClaudeMd.trim() || undefined;
+  // END ADD-PROACTIVE-MEMORY
+
   // Discover additional directories mounted at /workspace/extra/*
   // These are passed to the SDK so their CLAUDE.md files are loaded automatically
   const extraDirs: string[] = [];

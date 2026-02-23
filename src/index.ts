@@ -217,8 +217,8 @@ Your task is to:
     // Streaming output callback — called for each agent result
     if (result.result) {
       const raw = typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-      // Strip <internal>...</internal> blocks — agent uses these for internal reasoning
-      const text = raw.replace(/<internal>[\s\S]*?<\/internal>/g, '').trim();
+      // Strip <internal>...</internal> and <wal>...</wal> blocks — agent uses these for internal reasoning
+      const text = raw.replace(/<(internal|wal)>[\s\S]*?<\/\1>/g, '').trim();
       logger.info({ group: group.name }, `Agent output: ${raw.slice(0, 200)}`);
       if (text) {
         const formatted = formatOutbound(text);
