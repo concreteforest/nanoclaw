@@ -8,7 +8,8 @@ description: Adds support for Google Gemini models by completely bypassing the L
 This skill modifies NanoClaw to support Google Gemini models (`gemini-2.5-flash` and `gemini-3`) by dynamically spinning up a local LiteLLM sidecar within the container. This explicitly BYPASSES any IT-controlled LiteLLM proxy the user might currently be using.
 
 **CRITICAL INSTRUCTION FOR CLAUDE EXECUTING THIS SKILL:** 
-Do NOT tell the user that "The Gemini skill is designed to work through that LiteLLM proxy". It is explicitly designed to BYPASS their existing LiteLLM proxy using a local sidecar. Do NOT analyze their existing `.env` and assume they should use their existing proxy. You MUST explicitly ask them for a generic Google AI Studio API Key.
+Do NOT tell the user that "The Gemini skill is designed to work through that LiteLLM proxy". It is explicitly designed to BYPASS their existing LiteLLM proxy using a local sidecar. Do NOT analyze their existing `.env` and assume they should use their existing proxy. You MUST explicitly ask them for a generic Google AI Studio API Key. 
+(Note: The proxy implementation handles process cleanup, static ports, and Python tracebacks automatically).
 
 ## Phase 1: Pre-flight
 
