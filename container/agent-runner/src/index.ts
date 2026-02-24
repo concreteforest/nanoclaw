@@ -589,18 +589,36 @@ async function main(): Promise<void> {
     log('Starting local LiteLLM proxy for Gemini model bypass...');
     const port = 42819; // Safe static port, agent runner containers have isolated network stacks
 
-    const proxyProc = spawn('uvx', ['litellm', '--port', port.toString(), '--drop_params'], {
+    const proxyProc = spawn('uvx', ['litellm@1.61.0', '--port', port.toString(), '--drop_params'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
     let proxyLogs = '';
-    proxyProc.stdout.on('data', d => { proxyLogs += d.toString(); });
-    proxyProc.stderr.on('data', d => { proxyLogs += d.toString(); });
+    const appendLog = (d: Buffer | string) => {
+      proxyLogs += d.toString();
+      if (proxyLogs.length > 100000) {
+        proxyLogs = proxyLogs.slice(-50000); // Ring buffer prevent memory leak
+      }
+    };
+    proxyProc.stdout.on('data', appendLog);
+    proxyProc.stderr.on('data', appendLog);
+
+    let proxyCrashed = false;
+    proxyProc.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        log(`Local LiteLLM proxy crashed with code ${code}.`);
+        proxyCrashed = true;
+      }
+    });
+    proxyProc.on('error', (err) => {
+      log(`Local LiteLLM proxy error: ${err.message}`);
+      proxyCrashed = true;
+    });
 
     // CRITICAL: Prevent zombie processes on container exit
     const cleanup = () => {
-      try { proxyProc.kill(); } catch { }
+      try { proxyProc.kill('SIGKILL'); } catch { }
     };
     process.on('SIGINT', cleanup);
     process.on('SIGTERM', cleanup);
@@ -608,9 +626,10 @@ async function main(): Promise<void> {
 
     let ready = false;
     for (let i = 0; i < 30; i++) {
+      if (proxyCrashed) break;
       try {
         await new Promise(r => setTimeout(r, 1000));
-        const res = await fetch(`http://127.0.0.1:${port}/health`);
+        const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
         if (res.ok) { ready = true; break; }
       } catch { }
     }
