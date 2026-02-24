@@ -16,7 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { query, HookCallback, PreCompactHookInput, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 
@@ -589,7 +589,14 @@ async function main(): Promise<void> {
     log('Starting local LiteLLM proxy for Gemini model bypass...');
     const port = 42819; // Safe static port, agent runner containers have isolated network stacks
 
-    const proxyProc = spawn('uvx', ['--with', 'litellm[proxy]==1.61.0', '--with', 'backoff', 'litellm', '--port', port.toString(), '--drop_params'], {
+    log('Installing LiteLLM proxy dependencies...');
+    try {
+      execSync('uv pip install "litellm[proxy]==1.61.0" backoff', { stdio: 'ignore' });
+    } catch (err) {
+      log('Warning: Failed to pre-install dependencies: ' + (err instanceof Error ? err.message : String(err)));
+    }
+
+    const proxyProc = spawn('uvx', ['litellm@1.61.0', '--port', port.toString(), '--drop_params'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
