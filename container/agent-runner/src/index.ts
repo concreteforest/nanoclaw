@@ -589,7 +589,7 @@ async function main(): Promise<void> {
     log('Starting local LiteLLM proxy for Gemini model bypass...');
     const port = 42819; // Safe static port, agent runner containers have isolated network stacks
 
-    const proxyProc = spawn('litellm', ['--port', port.toString(), '--drop_params'], {
+    const proxyProc = spawn('litellm', ['--model', `gemini/${resolvedModel}`, '--port', port.toString(), '--drop_params'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
@@ -630,7 +630,7 @@ async function main(): Promise<void> {
       try {
         await new Promise(r => setTimeout(r, 1000));
         const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
-        if (res.ok) { ready = true; break; }
+        if (res.status < 600) { ready = true; break; }
       } catch { }
     }
 
