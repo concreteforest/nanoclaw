@@ -18,7 +18,6 @@ import {
   markTaskRunning,
   updateTask,
   updateTaskAfterRun,
-  getDefaultModel,
 } from './db.js';
 import { GroupQueue } from './group-queue.js';
 import { resolveGroupFolderPath } from './group-folder.js';
@@ -126,29 +125,17 @@ async function runTask(
     }, TASK_CLOSE_DELAY_MS);
   };
 
-  // Parse model override from prompt
-  let actualPrompt = task.prompt;
-  let modelOverride: string | undefined;
-  const modelPrefixMatch = task.prompt.match(/^(use|with)\\s+(haiku|sonnet|opus|gemini-2\\.5-flash|gemini-3)[:\\s]/i);
-  if (modelPrefixMatch) {
-    modelOverride = modelPrefixMatch[2].toLowerCase();
-    actualPrompt = task.prompt.slice(modelPrefixMatch[0].length).trim();
-  }
-
-  const model = modelOverride || getDefaultModel();
-
   try {
     const output = await runContainerAgent(
       group,
       {
-        prompt: actualPrompt,
+        prompt: task.prompt,
         sessionId,
         groupFolder: task.group_folder,
         chatJid: task.chat_jid,
         isMain,
         isScheduledTask: true,
         assistantName: ASSISTANT_NAME,
-        model,
       },
       (proc, containerName) => deps.onProcess(task.chat_jid, proc, containerName, task.group_folder),
       async (streamedOutput: ContainerOutput) => {
