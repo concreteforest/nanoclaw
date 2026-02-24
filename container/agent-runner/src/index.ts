@@ -591,12 +591,13 @@ async function main(): Promise<void> {
 
     log('Installing LiteLLM proxy dependencies...');
     try {
-      execSync('uv pip install "litellm[proxy]==1.61.0" backoff', { stdio: 'ignore' });
+      // Use uv pip install for speed, install into the persistent container python environment
+      execSync('uv pip install litellm[proxy]==1.61.0 backoff', { env: { ...process.env, UV_SYSTEM_PYTHON: '1' } });
     } catch (err) {
-      log('Warning: Failed to pre-install dependencies: ' + (err instanceof Error ? err.message : String(err)));
+      log('Warning: Failed to install dependencies: ' + (err instanceof Error ? err.message : String(err)));
     }
 
-    const proxyProc = spawn('uvx', ['litellm@1.61.0', '--port', port.toString(), '--drop_params'], {
+    const proxyProc = spawn('python3', ['-m', 'litellm', '--port', port.toString(), '--drop_params'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
