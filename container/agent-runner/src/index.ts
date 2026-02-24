@@ -128,6 +128,15 @@ function getSessionSummary(sessionId: string, transcriptPath: string): string | 
   } catch { return null; }
 }
 
+function sanitizeFilename(summary: string): string {
+  return summary.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
+}
+
+function generateFallbackName(): string {
+  const time = new Date();
+  return `conversation-${time.getHours().toString().padStart(2, '0')}${time.getMinutes().toString().padStart(2, '0')}`;
+}
+
 function createPreCompactHook(groupFolder: string, assistantName?: string): HookCallback {
   return async (input, _toolUseId, _context) => {
     const preCompact = input as PreCompactHookInput;
@@ -172,13 +181,24 @@ function createSanitizeBashHook(): HookCallback {
   };
 }
 
-function sanitizeFilename(summary: string): string {
-  return summary.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 50);
-}
-
-function generateFallbackName(): string {
-  const time = new Date();
-  return `conversation-${time.getHours().toString().padStart(2, '0')}${time.getMinutes().toString().padStart(2, '0')}`;
+/**
+ * Standardize numeric toolUseIds into strings (Gemini via LiteLLM often returns numbers)
+ */
+function createStandardizeIdHook(): HookCallback {
+  return async (input, _toolUseId, _context) => {
+    const toolUseId = _toolUseId;
+    const isNumeric = typeof toolUseId === 'number' || (typeof toolUseId === 'string' && /^\d+$/.test(toolUseId));
+    if (isNumeric) {
+      log(`Standardizing numeric toolUseId: ${toolUseId} -> tool_${toolUseId}`);
+      return {
+        hookSpecificOutput: {
+          hookEventName: 'PreToolUse',
+          updatedInput: { ...(input as PreToolUseHookInput).tool_input as any },
+        },
+      };
+    }
+    return {};
+  };
 }
 
 interface ParsedMessage { role: 'user' | 'assistant'; content: string; }
@@ -296,7 +316,10 @@ async function runQuery(
       },
       hooks: {
         PreCompact: [{ hooks: [createPreCompactHook(containerInput.groupFolder, containerInput.assistantName)] }],
-        PreToolUse: [{ matcher: 'Bash', hooks: [createSanitizeBashHook()] }],
+        PreToolUse: [
+          { matcher: '*', hooks: [createStandardizeIdHook()] },
+          { matcher: 'Bash', hooks: [createSanitizeBashHook()] }
+        ],
       },
     }
   })) {
