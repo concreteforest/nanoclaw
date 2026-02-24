@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { randomUUID } from 'crypto';
 
 import {
   ASSISTANT_NAME,
@@ -270,6 +271,19 @@ Your task is to:
     'Processing successful, clearing piped cursor',
   );
   delete pipedTimestamp[chatJid];
+
+  // If this was a /clear command, rotate the session ID for the next message
+  // This ensures the next interaction starts fresh without the accumulated context
+  if (isClearCommand) {
+    const newSessionId = randomUUID();
+    setSession(group.folder, newSessionId);
+    sessions[group.folder] = newSessionId;
+    logger.info(
+      { group: group.name, newSessionId },
+      'Session rotated after /clear command',
+    );
+  }
+
   return true;
 }
 
