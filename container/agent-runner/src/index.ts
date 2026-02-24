@@ -16,6 +16,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { spawn } from 'child_process';
 import { query, HookCallback, PreCompactHookInput, PreToolUseHookInput } from '@anthropic-ai/claude-agent-sdk';
 import { fileURLToPath } from 'url';
 
@@ -49,11 +50,12 @@ interface SessionsIndex {
   entries: SessionEntry[];
 }
 
-// Model alias mapping - using LiteLLM provider-prefixed model names
 const MODEL_ALIASES: Record<string, string> = {
   haiku: 'bedrock-claude-4-5-haiku',
   sonnet: 'vertex-claude-4-5-sonnet',
   opus: 'bedrock-anthropic-claude-4-5-opus',
+  'gemini-2.5-flash': 'gemini/gemini-2.5-flash',
+  'gemini-3': 'gemini/gemini-3',
 };
 
 function resolveModel(alias: string): string {
@@ -580,6 +582,51 @@ async function main(): Promise<void> {
 
   // Clean up stale _close sentinel from previous container runs
   try { fs.unlinkSync(IPC_INPUT_CLOSE_SENTINEL); } catch { /* ignore */ }
+
+  const resolvedModel = containerInput.model ? resolveModel(containerInput.model) : undefined;
+
+  if (resolvedModel && resolvedModel.startsWith('gemini') && containerInput.secrets?.GOOGLE_API_KEY) {
+    log('Starting local LiteLLM proxy for Gemini model bypass...');
+    const port = 42819; // Safe static port, agent runner containers have isolated network stacks
+
+    const proxyProc = spawn('uvx', ['litellm', '--port', port.toString(), '--drop_params'], {
+      env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    let proxyLogs = '';
+    proxyProc.stdout.on('data', d => { proxyLogs += d.toString(); });
+    proxyProc.stderr.on('data', d => { proxyLogs += d.toString(); });
+
+    // CRITICAL: Prevent zombie processes on container exit
+    const cleanup = () => {
+      try { proxyProc.kill(); } catch { }
+    };
+    process.on('SIGINT', cleanup);
+    process.on('SIGTERM', cleanup);
+    process.on('exit', cleanup);
+
+    let ready = false;
+    for (let i = 0; i < 30; i++) {
+      try {
+        await new Promise(r => setTimeout(r, 1000));
+        const res = await fetch(`http://127.0.0.1:${port}/health`);
+        if (res.ok) { ready = true; break; }
+      } catch { }
+    }
+
+    if (!ready) {
+      cleanup();
+      log(`Failed to start local LLM proxy within 30 seconds. Proxy Logs:\n${proxyLogs}`);
+      writeOutput({ status: 'error', result: null, error: 'Failed to start local LLM proxy bypass for Gemini. Check logs.' });
+      process.exit(1);
+    }
+
+    // Override the base URL to point to our local shim and use the Google key directly
+    sdkEnv.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`;
+    sdkEnv.ANTHROPIC_API_KEY = containerInput.secrets.GOOGLE_API_KEY;
+    log('Local proxy bypass ready on port ' + port);
+  }
 
   // Build initial prompt (drain any pending IPC messages too)
   let prompt = containerInput.prompt;
