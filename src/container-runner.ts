@@ -62,6 +62,10 @@ function buildVolumeMounts(
   const projectRoot = process.cwd();
   const groupDir = resolveGroupFolderPath(group.folder);
 
+  // Use a unique workspace path per group so Claude Code SDK derives unique project names
+  // This prevents session ID collisions between groups
+  const uniqueWorkspacePath = `/workspace/group-${group.folder}`;
+
   if (isMain) {
     // Main gets the project root read-only. Writable paths the agent needs
     // (group folder, IPC, .claude/) are mounted separately below.
@@ -74,17 +78,17 @@ function buildVolumeMounts(
       readonly: true,
     });
 
-    // Main also gets its group folder as the working directory
+    // Main also gets its group folder as the working directory with unique path
     mounts.push({
       hostPath: groupDir,
-      containerPath: '/workspace/group',
+      containerPath: uniqueWorkspacePath,
       readonly: false,
     });
   } else {
-    // Other groups only get their own folder
+    // Other groups only get their own folder with unique path
     mounts.push({
       hostPath: groupDir,
-      containerPath: '/workspace/group',
+      containerPath: uniqueWorkspacePath,
       readonly: false,
     });
 
@@ -197,7 +201,7 @@ function buildVolumeMounts(
  * Secrets are never written to disk or mounted as files.
  */
 function readSecrets(): Record<string, string> {
-  return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL']);
+  return readEnvFile(['CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL', 'ANTHROPIC_DISABLE_BETA_HEADERS']);
 }
 
 function buildContainerArgs(mounts: VolumeMount[], containerName: string): string[] {

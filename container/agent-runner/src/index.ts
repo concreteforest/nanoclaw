@@ -155,7 +155,7 @@ function getSessionSummary(sessionId: string, transcriptPath: string): string | 
 /**
  * Archive the full transcript to conversations/ before compaction.
  */
-function createPreCompactHook(assistantName?: string): HookCallback {
+function createPreCompactHook(groupFolder: string, assistantName?: string): HookCallback {
   return async (input, _toolUseId, _context) => {
     const preCompact = input as PreCompactHookInput;
     const transcriptPath = preCompact.transcript_path;
@@ -178,7 +178,7 @@ function createPreCompactHook(assistantName?: string): HookCallback {
       const summary = getSessionSummary(sessionId, transcriptPath);
       const name = summary ? sanitizeFilename(summary) : generateFallbackName();
 
-      const conversationsDir = '/workspace/group/conversations';
+      const conversationsDir = `/workspace/group-${groupFolder}/conversations`;
       fs.mkdirSync(conversationsDir, { recursive: true });
 
       const date = new Date().toISOString().split('T')[0];
@@ -374,6 +374,10 @@ async function runQuery(
   sdkEnv: Record<string, string | undefined>,
   resumeAt?: string,
 ): Promise<{ newSessionId?: string; lastAssistantUuid?: string; closedDuringQuery: boolean }> {
+  // Use group-specific workspace path so Claude Code SDK derives unique project names
+  // This prevents session ID collisions between groups
+  const workspacePath = `/workspace/group-${containerInput.groupFolder}`;
+
   const stream = new MessageStream();
   stream.push(prompt);
 
@@ -411,7 +415,7 @@ async function runQuery(
   }
 
   // BEGIN ADD-PROACTIVE-MEMORY
-  const bufferTxtPath = '/workspace/group/buffer.txt';
+  const bufferTxtPath = `${workspacePath}/buffer.txt`;
   let bufferTxtContext = '';
   if (fs.existsSync(bufferTxtPath)) {
     try {
@@ -460,11 +464,10 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
     log(`Additional directories: ${extraDirs.join(', ')}`);
   }
 
-
   for await (const message of query({
     prompt: stream,
     options: {
-      cwd: '/workspace/group',
+      cwd: workspacePath,
       additionalDirectories: extraDirs.length > 0 ? extraDirs : undefined,
       resume: sessionId,
       resumeSessionAt: resumeAt,
@@ -506,7 +509,7 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
         },
       },
       hooks: {
-        PreCompact: [{ hooks: [createPreCompactHook(containerInput.assistantName)] }],
+        PreCompact: [{ hooks: [createPreCompactHook(containerInput.groupFolder, containerInput.assistantName)] }],
         PreToolUse: [{ matcher: 'Bash', hooks: [createSanitizeBashHook()] }],
       },
     }
