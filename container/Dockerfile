@@ -25,7 +25,7 @@ RUN apt-get update && apt-get install -y \
     git \
     python3 \
     python3-pip \
-    && python3 -m pip install --break-system-packages "litellm[proxy]==1.61.0" "backoff" \
+    && python3 -m pip install --break-system-packages "litellm[proxy]" "backoff" \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv package manager for Python (as node user)
