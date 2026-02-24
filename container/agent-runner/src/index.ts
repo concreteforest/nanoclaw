@@ -320,7 +320,7 @@ async function startProxy(containerInput: ContainerInput, sdkEnv: Record<string,
 
   if (resolvedModel && resolvedModel.startsWith('gemini') && containerInput.secrets?.GOOGLE_API_KEY) {
     log('Starting local LiteLLM proxy for Gemini model bypass...');
-    const proxyProc = spawn('litellm', ['--model', `gemini/${resolvedModel}`, '--port', port.toString(), '--drop_params'], {
+    const proxyProc = spawn('litellm', ['--model', `gemini/${resolvedModel}`, '--port', port.toString(), '--drop_params', '--debug'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
