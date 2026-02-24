@@ -432,6 +432,15 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
   if (bufferTxtContext) {
     globalClaudeMd += `\n\n## Current Working Buffer (\`buffer.txt\`)\n${bufferTxtContext}\n`;
   }
+
+  // Resolve model alias to full model name
+  const resolvedModel = containerInput.model ? resolveModel(containerInput.model) : undefined;
+  const isGemini = resolvedModel && (resolvedModel.toLowerCase().includes('gemini') || resolvedModel.toLowerCase().includes('vertex'));
+
+  if (isGemini) {
+    globalClaudeMd += `\n\n## Web Search Fallback\nNative WebSearch tools are disabled on your architecture. To search the web or fetch pages, you MUST use the Bash tool with 'curl', python scripts, or your 'agent-browser' skill.`;
+  }
+
   globalClaudeMd = globalClaudeMd.trim() || undefined;
   // END ADD-PROACTIVE-MEMORY
 
@@ -451,11 +460,6 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
     log(`Additional directories: ${extraDirs.join(', ')}`);
   }
 
-  // Resolve model alias to full model name
-  const resolvedModel = containerInput.model ? resolveModel(containerInput.model) : undefined;
-  if (resolvedModel) {
-    log(`Using model: ${resolvedModel} (from alias: ${containerInput.model})`);
-  }
 
   for await (const message of query({
     prompt: stream,
@@ -471,7 +475,7 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
       allowedTools: [
         'Bash',
         'Read', 'Write', 'Edit', 'Glob', 'Grep',
-        'WebSearch', 'WebFetch',
+        ...(isGemini ? [] : ['WebSearch', 'WebFetch']),
         'Task', 'TaskOutput', 'TaskStop',
         'TeamCreate', 'TeamDelete', 'SendMessage',
         'TodoWrite', 'ToolSearch', 'Skill',
