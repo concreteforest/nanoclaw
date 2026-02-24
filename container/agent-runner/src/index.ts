@@ -43,7 +43,8 @@ const MODEL_ALIASES: Record<string, string> = {
   haiku: 'bedrock-claude-4-5-haiku',
   sonnet: 'vertex-claude-4-5-sonnet',
   opus: 'bedrock-anthropic-claude-4-5-opus',
-  'gemini-2.5-flash': 'gemini/gemini-2.5-flash',
+  'gemini-2.5-flash': 'gemini/gemini-1.5-flash',
+  'gemini-1.5-flash': 'gemini/gemini-1.5-flash',
   'gemini-3': 'gemini/gemini-3',
 };
 
