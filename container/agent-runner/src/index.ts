@@ -591,8 +591,8 @@ async function main(): Promise<void> {
 
     log('Installing LiteLLM proxy dependencies...');
     try {
-      // Use uv pip install for speed, install into the persistent container python environment
-      execSync('uv pip install litellm[proxy]==1.61.0 backoff', { env: { ...process.env, UV_SYSTEM_PYTHON: '1' } });
+      // Use pip with --break-system-packages since we are in a short-lived container
+      execSync('python3 -m pip install --break-system-packages "litellm[proxy]==1.61.0" backoff', { stdio: 'ignore' });
     } catch (err) {
       log('Warning: Failed to install dependencies: ' + (err instanceof Error ? err.message : String(err)));
     }
