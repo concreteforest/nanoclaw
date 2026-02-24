@@ -288,7 +288,7 @@ async function runQuery(
       model: containerInput.model ? resolveModel(containerInput.model) : undefined,
       systemPrompt,
       allowedTools: ['Bash', 'Read', 'Write', 'Edit', 'Glob', 'Grep', 'WebSearch', 'WebFetch', 'Task', 'Skill', 'mcp__nanoclaw__*', 'mcp__google_workspace__*'],
-      env: sdkEnv,
+      env: { ...sdkEnv, LITELLM_LOG: 'DEBUG' },
       permissionMode: 'bypassPermissions',
       allowDangerouslySkipPermissions: true,
       mcpServers: {
@@ -301,12 +301,12 @@ async function runQuery(
     }
   })) {
     messageCount++;
+    log(`[msg #${messageCount}] type=${message.type} data=${JSON.stringify(message).slice(0, 500)}`);
     if (message.type === 'assistant' && 'uuid' in message) lastAssistantUuid = (message as any).uuid;
     if (message.type === 'system' && message.subtype === 'init') { newSessionId = message.session_id; log(`Session initialized: ${newSessionId}`); }
     if (message.type === 'result') {
       resultCount++;
       const textResult = 'result' in message ? (message as any).result : null;
-      log(`Result #${resultCount}: subtype=${message.subtype} data=${JSON.stringify(message).slice(0, 500)}`);
       writeOutput({ status: 'success', result: textResult || null, newSessionId });
     }
   }
