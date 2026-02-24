@@ -435,10 +435,13 @@ You are equipped with a Working Buffer and a Write-Ahead Log (WAL).
 
   // Resolve model alias to full model name
   const resolvedModel = containerInput.model ? resolveModel(containerInput.model) : undefined;
-  const isGemini = resolvedModel && (resolvedModel.toLowerCase().includes('gemini') || resolvedModel.toLowerCase().includes('vertex'));
+  const isGemini = resolvedModel && (
+    resolvedModel.toLowerCase().includes('gemini') ||
+    resolvedModel.toLowerCase().includes('vertex-gemini')
+  );
 
   if (isGemini) {
-    globalClaudeMd += `\n\n## Web Search Fallback\nNative WebSearch tools are disabled on your architecture. To search the web or fetch pages, you MUST use the Bash tool with 'curl', python scripts, or your 'agent-browser' skill.`;
+    globalClaudeMd += `\n\n## Web Search Fallback\nNative WebSearch tools are disabled on your architecture. To search the web or fetch pages, you MUST use the Bash tool with 'curl', python scripts, or your 'agent-browser' skill. (e.g., \`agent-browser open <url>\`, \`agent-browser snapshot -c\`, \`agent-browser click @e1\`).`;
   }
 
   globalClaudeMd = globalClaudeMd.trim() || undefined;
