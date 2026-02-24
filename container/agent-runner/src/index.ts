@@ -630,6 +630,7 @@ async function main(): Promise<void> {
       try {
         await new Promise(r => setTimeout(r, 1000));
         const res = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(2000) });
+        log(`Health check status: ${res.status}`);
         if (res.status < 600) { ready = true; break; }
       } catch { }
     }
