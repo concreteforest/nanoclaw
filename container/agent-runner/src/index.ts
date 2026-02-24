@@ -589,15 +589,7 @@ async function main(): Promise<void> {
     log('Starting local LiteLLM proxy for Gemini model bypass...');
     const port = 42819; // Safe static port, agent runner containers have isolated network stacks
 
-    log('Installing LiteLLM proxy dependencies...');
-    try {
-      // Use pip with --break-system-packages since we are in a short-lived container
-      execSync('python3 -m pip install --break-system-packages "litellm[proxy]==1.61.0" backoff', { stdio: 'ignore' });
-    } catch (err) {
-      log('Warning: Failed to install dependencies: ' + (err instanceof Error ? err.message : String(err)));
-    }
-
-    const proxyProc = spawn('python3', ['-m', 'litellm', '--port', port.toString(), '--drop_params'], {
+    const proxyProc = spawn('litellm', ['--port', port.toString(), '--drop_params'], {
       env: { ...process.env, GEMINI_API_KEY: containerInput.secrets.GOOGLE_API_KEY },
       stdio: ['ignore', 'pipe', 'pipe']
     });
